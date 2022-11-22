@@ -49,6 +49,12 @@ interface SwiperProps extends SwiperOptions {
    * Event will be fired when swiper updates the hash
    */
   onHashSet?: (swiper: SwiperClass) => void;/**
+   * Event will be fired on key press
+   */
+  onKeyPress?: (swiper: SwiperClass, keyCode: string) => void;/**
+   * Event will be fired on mousewheel scroll
+   */
+  onScroll?: (swiper: SwiperClass, event: WheelEvent) => void;/**
    * Event will be fired in the beginning of lazy loading of image
    */
   onLazyImageLoad?: (swiper: SwiperClass, slideEl: HTMLElement, imageEl: HTMLElement) => void;
@@ -71,12 +77,22 @@ interface SwiperProps extends SwiperOptions {
    * Event will be fired on navigation next button click
    */
   onNavigationNext?: (swiper: SwiperClass) => void;/**
-   * Event will be fired on key press
+   * Event will be fired on draggable scrollbar drag start
    */
-  onKeyPress?: (swiper: SwiperClass, keyCode: string) => void;/**
-   * Event will be fired on mousewheel scroll
+  onScrollbarDragStart?: (swiper: SwiperClass, event: MouseEvent | TouchEvent | PointerEvent) => void;
+
+  /**
+   * Event will be fired on draggable scrollbar drag move
    */
-  onScroll?: (swiper: SwiperClass, event: WheelEvent) => void;/**
+  onScrollbarDragMove?: (swiper: SwiperClass, event: MouseEvent | TouchEvent | PointerEvent) => void;
+
+  /**
+   * Event will be fired on draggable scrollbar drag end
+   */
+  onScrollbarDragEnd?: (swiper: SwiperClass, event: MouseEvent | TouchEvent | PointerEvent) => void;/**
+   * Event will be fired on zoom change
+   */
+  onZoomChange?: (swiper: SwiperClass, scale: number, imageEl: HTMLElement, slideEl: HTMLElement) => void;/**
    * Event will be fired after pagination rendered
    */
   onPaginationRender?: (swiper: SwiperClass, paginationEl: HTMLElement) => void;
@@ -94,23 +110,7 @@ interface SwiperProps extends SwiperOptions {
   /**
    * Event will be fired on pagination show
    */
-  onPaginationShow?: (swiper: SwiperClass) => void;/**
-   * Event will be fired on draggable scrollbar drag start
-   */
-  onScrollbarDragStart?: (swiper: SwiperClass, event: MouseEvent | TouchEvent | PointerEvent) => void;
-
-  /**
-   * Event will be fired on draggable scrollbar drag move
-   */
-  onScrollbarDragMove?: (swiper: SwiperClass, event: MouseEvent | TouchEvent | PointerEvent) => void;
-
-  /**
-   * Event will be fired on draggable scrollbar drag end
-   */
-  onScrollbarDragEnd?: (swiper: SwiperClass, event: MouseEvent | TouchEvent | PointerEvent) => void;/**
-   * Event will be fired on zoom change
-   */
-  onZoomChange?: (swiper: SwiperClass, scale: number, imageEl: HTMLElement, slideEl: HTMLElement) => void;
+  onPaginationShow?: (swiper: SwiperClass) => void;
   
   /**
    * Fired right after Swiper initialization.
@@ -477,10 +477,14 @@ interface SwiperProps
   > {}
 interface SwiperSlideProps extends React.HTMLAttributes<HTMLElement> {}
 
-declare const Swiper: React.FunctionComponent<SwiperProps>;
-declare const SwiperSlide: React.VoidFunctionComponent<SwiperSlideProps>;
+interface SwiperRef extends React.HTMLAttributes<HTMLElement> {
+  swiper: SwiperClass;
+}
+
+declare const Swiper: React.FunctionComponent<React.RefAttributes<SwiperRef> & SwiperProps>;
+declare const SwiperSlide: React.FunctionComponent<SwiperSlideProps>;
 
 declare const useSwiper: () => SwiperClass;
 declare const useSwiperSlide: () => SlideData;
 
-export { Swiper, SwiperSlide, SwiperProps, SwiperSlideProps, useSwiper, useSwiperSlide };
+export { Swiper, SwiperSlide, SwiperProps, SwiperSlideProps, SwiperRef, useSwiper, useSwiperSlide };
