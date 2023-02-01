@@ -2,7 +2,7 @@
 * Template Name: Regna - v4.10.0
 * Bootstrap version: 5.3.0-alpha1
 * Bootstrap icons version: 1.10.3
-* Swiper JS version: 8.4.5
+* Swiper JS version: 8.4.6
 * Template URL: https://bootstrapmade.com/regna-bootstrap-onepage-template/
 * Author: BootstrapMade.com
 * License: https://bootstrapmade.com/license/
@@ -12,10 +12,10 @@
 # General
 --------------------------------------------------------------*/
 body {
-  background: #464242;
+  background: #000000;
   color: white;
   text-align: center;
-  font-family: Edu VIC WA NT Beginner;
+  font-family: Trebuchet MS;
 }
 
 a {
@@ -42,7 +42,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: Edu VIC WA NT Beginner;
+  font-family: Trebuchet MS;
   font-weight: 400;
   margin: 0 0 20px 0;
   padding: 0;
@@ -71,7 +71,7 @@ h6 {
   font-size: 32px;
   margin: 0;
   line-height: 1;
-  font-family: Edu VIC WA NT Beginner;
+  font-family: Trebuchet MS;
   font-weight: 700;
   letter-spacing: 3px;
   text-transform: uppercase;
@@ -107,7 +107,7 @@ h6 {
 #hero {
   width: 100%;
   height: 100vh;
-  background: url(../img/mountain_bg.jpg) top center;
+  background: #540304;
   background-size: cover;
   position: relative;
 }
@@ -172,7 +172,7 @@ h6 {
 }
 
 #hero .btn-get-started {
-  font-family: Edu VIC WA NT Beginner;
+  font-family: Trebuchet MS;
   text-transform: uppercase;
   font-weight: 500;
   font-size: 16px;
@@ -296,7 +296,7 @@ section {
 }
 
 #call-to-action .cta-btn {
-  font-family: Edu VIC WA NT Beginner;
+  font-family: Trebuchet MS;
   text-transform: uppercase;
   font-weight: 500;
   font-size: 16px;
@@ -339,7 +339,7 @@ section {
 # Footer
 --------------------------------------------------------------*/
 #footer {
-  background: #343b40;
+  background: #000000;
   padding: 30px 0;
   color: #fff;
   font-size: 14px;
@@ -360,25 +360,21 @@ section {
 # CSS for index.html
 --------------------------------------------------------------*/
 strong {
-  color: #07CFE7;
+  color: #727272;
 }
 strong2 {
-  color: #b1cfa7;
+  color: white;
 }
 body::-webkit-scrollbar {
   width: 12px;
 }
 body::-webkit-scrollbar-track {
-  background: #faf8ef;
+  background: #000000;
   border-radius: 6px;
 }
 body::-webkit-scrollbar-thumb {
-  background: #bbada0;
+  background: #727272;
   border-radius: 6px;
-}
-.animated {
-  animation: animation 4s ease;
-  text-align: center;
 }
 .center1 {
   display: block;
@@ -388,5 +384,5 @@ body::-webkit-scrollbar-thumb {
   width: 200%;
 }
 body {
-    font-family: 'Edu VIC WA NT Beginner';font-size: 30px;
+    font-family: 'Trebuchet MS';font-size: 30px;
 }
