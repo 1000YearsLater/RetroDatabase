@@ -1,5 +1,5 @@
 /**
- * Swiper 9.0.3
+ * Swiper 9.0.5
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: February 7, 2023
+ * Released on: February 17, 2023
  */
 
 /**
@@ -3944,7 +3944,7 @@ function Virtual(_ref) {
     }
     slideEl.setAttribute('data-swiper-slide-index', index);
     if (!params.renderSlide) {
-      slideEl.textContent = slide;
+      slideEl.innerHTML = slide;
     }
     if (params.cache) swiper.virtual.cache[index] = slideEl;
     return slideEl;
@@ -4172,7 +4172,7 @@ function Virtual(_ref) {
     if (!swiper.params.virtual.enabled) return;
     let domSlidesAssigned;
     if (typeof swiper.passedParams.virtual.slides === 'undefined') {
-      const slides = swiper.slidesEl.querySelectorAll(`.${swiper.params.slideClass}, swiper-slide`);
+      const slides = [...swiper.slidesEl.children].filter(el => el.matches(`.${swiper.params.slideClass}, swiper-slide`));
       if (slides && slides.length) {
         swiper.virtual.slides = [...slides];
         domSlidesAssigned = true;
@@ -4996,10 +4996,12 @@ function Pagination(_ref) {
     }
   }
   function onBulletClick(e) {
-    const isBullet = e.target.matches(classesToSelector(swiper.params.pagination.bulletClass));
-    if (!isBullet) return;
+    const bulletEl = e.target.closest(classesToSelector(swiper.params.pagination.bulletClass));
+    if (!bulletEl) {
+      return;
+    }
     e.preventDefault();
-    const index = elementIndex(e.target) * swiper.params.slidesPerGroup;
+    const index = elementIndex(bulletEl) * swiper.params.slidesPerGroup;
     if (swiper.params.loop) {
       swiper.slideToLoop(index);
     } else {
@@ -5607,7 +5609,7 @@ function Scrollbar(_ref) {
     el.classList.add(swiper.isHorizontal() ? params.horizontalClass : params.verticalClass);
     let dragEl;
     if (el) {
-      el.querySelector(`.${swiper.params.scrollbar.dragClass}`);
+      dragEl = el.querySelector(`.${swiper.params.scrollbar.dragClass}`);
       if (!dragEl) {
         dragEl = createElement('div', swiper.params.scrollbar.dragClass);
         el.append(dragEl);
@@ -5878,6 +5880,14 @@ function Zoom(_ref) {
     const distance = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
     return distance;
   }
+  function getScaleOrigin() {
+    if (evCache.length < 2) return {
+      x: null,
+      y: null
+    };
+    const box = gesture.imageEl.getBoundingClientRect();
+    return [(evCache[0].pageX + (evCache[1].pageX - evCache[0].pageX) / 2 - box.x) / currentScale, (evCache[0].pageY + (evCache[1].pageY - evCache[0].pageY) / 2 - box.y) / currentScale];
+  }
   function getSlideSelector() {
     return swiper.isElement ? `swiper-slide` : `.${swiper.params.slideClass}`;
   }
@@ -5926,6 +5936,8 @@ function Zoom(_ref) {
       gesture.maxRatio = gesture.imageWrapEl.getAttribute('data-swiper-zoom') || params.maxRatio;
     }
     if (gesture.imageEl) {
+      const [originX, originY] = getScaleOrigin();
+      gesture.imageEl.style.transformOrigin = `${originX}px ${originY}px`;
       gesture.imageEl.style.transitionDuration = '0ms';
     }
     isScaling = true;
@@ -5964,7 +5976,7 @@ function Zoom(_ref) {
     }
     fakeGestureTouched = false;
     fakeGestureMoved = false;
-    if (!gesture.imageE) return;
+    if (!gesture.imageEl) return;
     zoom.scale = Math.max(Math.min(zoom.scale, gesture.maxRatio), params.minRatio);
     gesture.imageEl.style.transitionDuration = `${swiper.params.speed}ms`;
     gesture.imageEl.style.transform = `translate3d(0,0,0) scale(${zoom.scale})`;
@@ -7178,6 +7190,7 @@ function Autoplay(_ref) {
     autoplayTimeLeft = delay;
     const speed = swiper.params.speed;
     const proceed = () => {
+      if (!swiper || swiper.destroyed) return;
       if (swiper.params.autoplay.reverseDirection) {
         if (!swiper.isBeginning || swiper.params.loop || swiper.params.rewind) {
           swiper.slidePrev(speed, true, true);

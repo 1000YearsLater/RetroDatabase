@@ -79,6 +79,14 @@ export default function Zoom({
     const distance = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
     return distance;
   }
+  function getScaleOrigin() {
+    if (evCache.length < 2) return {
+      x: null,
+      y: null
+    };
+    const box = gesture.imageEl.getBoundingClientRect();
+    return [(evCache[0].pageX + (evCache[1].pageX - evCache[0].pageX) / 2 - box.x) / currentScale, (evCache[0].pageY + (evCache[1].pageY - evCache[0].pageY) / 2 - box.y) / currentScale];
+  }
   function getSlideSelector() {
     return swiper.isElement ? `swiper-slide` : `.${swiper.params.slideClass}`;
   }
@@ -127,6 +135,8 @@ export default function Zoom({
       gesture.maxRatio = gesture.imageWrapEl.getAttribute('data-swiper-zoom') || params.maxRatio;
     }
     if (gesture.imageEl) {
+      const [originX, originY] = getScaleOrigin();
+      gesture.imageEl.style.transformOrigin = `${originX}px ${originY}px`;
       gesture.imageEl.style.transitionDuration = '0ms';
     }
     isScaling = true;
@@ -165,7 +175,7 @@ export default function Zoom({
     }
     fakeGestureTouched = false;
     fakeGestureMoved = false;
-    if (!gesture.imageE) return;
+    if (!gesture.imageEl) return;
     zoom.scale = Math.max(Math.min(zoom.scale, gesture.maxRatio), params.minRatio);
     gesture.imageEl.style.transitionDuration = `${swiper.params.speed}ms`;
     gesture.imageEl.style.transform = `translate3d(0,0,0) scale(${zoom.scale})`;
