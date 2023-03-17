@@ -1,5 +1,5 @@
 /**
- * Swiper 9.0.5
+ * Swiper 9.1.1
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: February 17, 2023
+ * Released on: March 17, 2023
  */
 
 import Swiper from './core/core.js';
