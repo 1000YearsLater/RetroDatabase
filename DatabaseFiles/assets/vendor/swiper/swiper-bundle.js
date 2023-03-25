@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: March 17, 2023
+ * Released on: March 25, 2023
  */
 
 (function (global, factory) {
@@ -3482,7 +3482,7 @@
             // Form elements to match
             focusableElements: swiper.params.focusableElements,
             // Last click time
-            lastClickTime: now(),
+            lastClickTime: 0,
             clickTimeout: undefined,
             // Velocities
             velocities: [],
@@ -6482,6 +6482,8 @@
         let controlledTranslate;
         const Swiper = swiper.constructor;
         function setControlledTranslate(c) {
+          if (c.destroyed) return;
+
           // this will create an Interpolate function based on the snapGrids
           // x is the Grid of the scrolled scroller and y will be the controlled scroller
           // it makes sense to create this only once and recall it for the interpolation
@@ -6520,6 +6522,7 @@
         const controlled = swiper.controller.control;
         let i;
         function setControlledTransition(c) {
+          if (c.destroyed) return;
           c.setTransition(duration, swiper);
           if (duration !== 0) {
             c.transitionStart();

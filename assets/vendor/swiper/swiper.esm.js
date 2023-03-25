@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: March 17, 2023
+ * Released on: March 25, 2023
  */
 
 export { default as Swiper, default } from './core/core.js';

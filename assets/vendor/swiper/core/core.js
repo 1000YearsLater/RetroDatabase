@@ -1,6 +1,6 @@
 /* eslint no-param-reassign: "off" */
 import { getDocument } from 'ssr-window';
-import { extend, now, deleteProps, createElement, elementChildren, elementStyle, elementIndex } from '../shared/utils.js';
+import { extend, deleteProps, createElement, elementChildren, elementStyle, elementIndex } from '../shared/utils.js';
 import { getSupport } from '../shared/get-support.js';
 import { getDevice } from '../shared/get-device.js';
 import { getBrowser } from '../shared/get-browser.js';
@@ -150,7 +150,7 @@ class Swiper {
         // Form elements to match
         focusableElements: swiper.params.focusableElements,
         // Last click time
-        lastClickTime: now(),
+        lastClickTime: 0,
         clickTimeout: undefined,
         // Velocities
         velocities: [],

@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: March 17, 2023
+ * Released on: March 25, 2023
  */
 
 (function () {
@@ -3452,7 +3452,7 @@
             // Form elements to match
             focusableElements: swiper.params.focusableElements,
             // Last click time
-            lastClickTime: now(),
+            lastClickTime: 0,
             clickTimeout: undefined,
             // Velocities
             velocities: [],
