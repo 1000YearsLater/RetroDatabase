@@ -6,7 +6,7 @@
  * Released under the MIT license
  * https://jquery.org/license
  *
- * Date: 2023-02-17T22:41Z
+ * Date: 2023-03-25T22:47Z
  */
 ( function( global, factory ) {
 
@@ -3168,7 +3168,7 @@ jQuery.extend( {
 
 											if ( jQuery.Deferred.exceptionHook ) {
 												jQuery.Deferred.exceptionHook( e,
-													process.stackTrace );
+													process.error );
 											}
 
 											// Support: Promises/A+ section 2.3.3.3.4.1
@@ -3196,10 +3196,10 @@ jQuery.extend( {
 								process();
 							} else {
 
-								// Call an optional hook to record the stack, in case of exception
+								// Call an optional hook to record the error, in case of exception
 								// since it's otherwise lost when execution goes async
-								if ( jQuery.Deferred.getStackHook ) {
-									process.stackTrace = jQuery.Deferred.getStackHook();
+								if ( jQuery.Deferred.getErrorHook ) {
+									process.error = jQuery.Deferred.getErrorHook();
 								}
 								window.setTimeout( process );
 							}
@@ -3373,13 +3373,16 @@ jQuery.extend( {
 // warn about them ASAP rather than swallowing them by default.
 var rerrorNames = /^(Eval|Internal|Range|Reference|Syntax|Type|URI)Error$/;
 
-jQuery.Deferred.exceptionHook = function( error, stack ) {
+// If `jQuery.Deferred.getErrorHook` is defined, `asyncError` is an error
+// captured before the async barrier to get the original error cause
+// which may otherwise be hidden.
+jQuery.Deferred.exceptionHook = function( error, asyncError ) {
 
 	if ( error && rerrorNames.test( error.name ) ) {
 		window.console.warn(
 			"jQuery.Deferred exception",
 			error,
-			stack
+			asyncError
 		);
 	}
 };
@@ -9162,10 +9165,14 @@ jQuery.ajaxPrefilter( "jsonp", function( s, originalSettings, jqXHR ) {
 	return "script";
 } );
 
-jQuery.ajaxPrefilter( function( s ) {
+jQuery.ajaxPrefilter( function( s, origOptions ) {
 
 	// Binary data needs to be passed to XHR as-is without stringification.
-	if ( typeof s.data !== "string" && !jQuery.isPlainObject( s.data ) ) {
+	if ( typeof s.data !== "string" && !jQuery.isPlainObject( s.data ) &&
+			!Array.isArray( s.data ) &&
+
+			// Don't disable data processing if explicitly set by the user.
+			!( "processData" in origOptions ) ) {
 		s.processData = false;
 	}
 
