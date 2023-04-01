@@ -19,7 +19,7 @@ import classes from './classes/index.js';
 import checkOverflow from './check-overflow/index.js';
 import defaults from './defaults.js';
 import moduleExtendParams from './moduleExtendParams.js';
-import { processLazyPreloader } from '../shared/process-lazy-preloader.js';
+import { processLazyPreloader, preload } from '../shared/process-lazy-preloader.js';
 const prototypes = {
   eventsEmitter,
   update,
@@ -497,9 +497,11 @@ class Swiper {
         });
       }
     });
+    preload(swiper);
 
     // Init Flag
     swiper.initialized = true;
+    preload(swiper);
 
     // Emit
     swiper.emit('init');

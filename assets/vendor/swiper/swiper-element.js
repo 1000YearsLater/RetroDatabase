@@ -1,5 +1,5 @@
 /**
- * Swiper Custom Element 9.1.1
+ * Swiper Custom Element 9.2.0
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: March 25, 2023
+ * Released on: April 1, 2023
  */
 
 (function () {
@@ -1274,6 +1274,41 @@
       swiper.emitSlidesClasses();
     }
 
+    const processLazyPreloader = (swiper, imageEl) => {
+      if (!swiper || swiper.destroyed || !swiper.params) return;
+      const slideSelector = () => swiper.isElement ? `swiper-slide` : `.${swiper.params.slideClass}`;
+      const slideEl = imageEl.closest(slideSelector());
+      if (slideEl) {
+        const lazyEl = slideEl.querySelector(`.${swiper.params.lazyPreloaderClass}`);
+        if (lazyEl) lazyEl.remove();
+      }
+    };
+    const unlazy = (swiper, index) => {
+      if (!swiper.slides[index]) return;
+      const imageEl = swiper.slides[index].querySelector('[loading="lazy"]');
+      if (imageEl) imageEl.removeAttribute('loading');
+    };
+    const preload = swiper => {
+      if (!swiper || swiper.destroyed || !swiper.params) return;
+      let amount = swiper.params.lazyPreloadPrevNext;
+      const len = swiper.slides.length;
+      if (!len || !amount || amount < 0) return;
+      amount = Math.min(amount, len);
+      const slidesPerView = swiper.params.slidesPerView === 'auto' ? swiper.slidesPerViewDynamic() : Math.ceil(swiper.params.slidesPerView);
+      const activeIndex = swiper.activeIndex;
+      const slideIndexLastInView = activeIndex + slidesPerView - 1;
+      if (swiper.params.rewind) {
+        for (let i = activeIndex - amount; i <= slideIndexLastInView + amount; i += 1) {
+          const realIndex = (i % len + len) % len;
+          if (realIndex !== activeIndex && realIndex > slideIndexLastInView) unlazy(swiper, realIndex);
+        }
+      } else {
+        for (let i = Math.max(slideIndexLastInView - amount, 0); i <= Math.min(slideIndexLastInView + amount, len - 1); i += 1) {
+          if (i !== activeIndex && i > slideIndexLastInView) unlazy(swiper, i);
+        }
+      }
+    };
+
     function getActiveIndexByTranslate(swiper) {
       const {
         slidesGrid,
@@ -1355,6 +1390,9 @@
         previousIndex,
         activeIndex
       });
+      if (swiper.initialized) {
+        preload(swiper);
+      }
       swiper.emit('activeIndexChange');
       swiper.emit('snapIndexChange');
       if (previousRealIndex !== realIndex) {
@@ -2852,16 +2890,6 @@
       swiper.emit('setTranslate', swiper.translate, false);
     }
 
-    const processLazyPreloader = (swiper, imageEl) => {
-      if (!swiper || swiper.destroyed || !swiper.params) return;
-      const slideSelector = () => swiper.isElement ? `swiper-slide` : `.${swiper.params.slideClass}`;
-      const slideEl = imageEl.closest(slideSelector());
-      if (slideEl) {
-        const lazyEl = slideEl.querySelector(`.${swiper.params.lazyPreloaderClass}`);
-        if (lazyEl) lazyEl.remove();
-      }
-    };
-
     function onLoad(e) {
       const swiper = this;
       processLazyPreloader(swiper, e.target);
@@ -3277,6 +3305,7 @@
       slidePrevClass: 'swiper-slide-prev',
       wrapperClass: 'swiper-wrapper',
       lazyPreloaderClass: 'swiper-lazy-preloader',
+      lazyPreloadPrevNext: 0,
       // Callbacks
       runCallbacksOnInit: true,
       // Internals
@@ -3808,9 +3837,11 @@
             });
           }
         });
+        preload(swiper);
 
         // Init Flag
         swiper.initialized = true;
+        preload(swiper);
 
         // Emit
         swiper.emit('init');
@@ -3906,7 +3937,7 @@
     Swiper.use([Resize, Observer]);
 
     /* underscore in name -> watch for changes */
-    const paramsList = ['eventsPrefix', 'modules', 'init', '_direction', 'oneWayMovement', 'touchEventsTarget', 'initialSlide', '_speed', 'cssMode', 'updateOnWindowResize', 'resizeObserver', 'nested', 'focusableElements', '_enabled', '_width', '_height', 'preventInteractionOnTransition', 'userAgent', 'url', '_edgeSwipeDetection', '_edgeSwipeThreshold', '_freeMode', '_autoHeight', 'setWrapperSize', 'virtualTranslate', '_effect', 'breakpoints', '_spaceBetween', '_slidesPerView', 'maxBackfaceHiddenSlides', '_grid', '_slidesPerGroup', '_slidesPerGroupSkip', '_slidesPerGroupAuto', '_centeredSlides', '_centeredSlidesBounds', '_slidesOffsetBefore', '_slidesOffsetAfter', 'normalizeSlideIndex', '_centerInsufficientSlides', '_watchOverflow', 'roundLengths', 'touchRatio', 'touchAngle', 'simulateTouch', '_shortSwipes', '_longSwipes', 'longSwipesRatio', 'longSwipesMs', '_followFinger', 'allowTouchMove', '_threshold', 'touchMoveStopPropagation', 'touchStartPreventDefault', 'touchStartForcePreventDefault', 'touchReleaseOnEdges', 'uniqueNavElements', '_resistance', '_resistanceRatio', '_watchSlidesProgress', '_grabCursor', 'preventClicks', 'preventClicksPropagation', '_slideToClickedSlide', '_loop', 'loopedSlides', 'loopPreventsSliding', '_rewind', '_allowSlidePrev', '_allowSlideNext', '_swipeHandler', '_noSwiping', 'noSwipingClass', 'noSwipingSelector', 'passiveListeners', 'containerModifierClass', 'slideClass', 'slideActiveClass', 'slideVisibleClass', 'slideNextClass', 'slidePrevClass', 'wrapperClass', 'lazyPreloaderClass', 'runCallbacksOnInit', 'observer', 'observeParents', 'observeSlideChildren',
+    const paramsList = ['eventsPrefix', 'modules', 'init', '_direction', 'oneWayMovement', 'touchEventsTarget', 'initialSlide', '_speed', 'cssMode', 'updateOnWindowResize', 'resizeObserver', 'nested', 'focusableElements', '_enabled', '_width', '_height', 'preventInteractionOnTransition', 'userAgent', 'url', '_edgeSwipeDetection', '_edgeSwipeThreshold', '_freeMode', '_autoHeight', 'setWrapperSize', 'virtualTranslate', '_effect', 'breakpoints', '_spaceBetween', '_slidesPerView', 'maxBackfaceHiddenSlides', '_grid', '_slidesPerGroup', '_slidesPerGroupSkip', '_slidesPerGroupAuto', '_centeredSlides', '_centeredSlidesBounds', '_slidesOffsetBefore', '_slidesOffsetAfter', 'normalizeSlideIndex', '_centerInsufficientSlides', '_watchOverflow', 'roundLengths', 'touchRatio', 'touchAngle', 'simulateTouch', '_shortSwipes', '_longSwipes', 'longSwipesRatio', 'longSwipesMs', '_followFinger', 'allowTouchMove', '_threshold', 'touchMoveStopPropagation', 'touchStartPreventDefault', 'touchStartForcePreventDefault', 'touchReleaseOnEdges', 'uniqueNavElements', '_resistance', '_resistanceRatio', '_watchSlidesProgress', '_grabCursor', 'preventClicks', 'preventClicksPropagation', '_slideToClickedSlide', '_loop', 'loopedSlides', 'loopPreventsSliding', '_rewind', '_allowSlidePrev', '_allowSlideNext', '_swipeHandler', '_noSwiping', 'noSwipingClass', 'noSwipingSelector', 'passiveListeners', 'containerModifierClass', 'slideClass', 'slideActiveClass', 'slideVisibleClass', 'slideNextClass', 'slidePrevClass', 'wrapperClass', 'lazyPreloaderClass', 'lazyPreloadPrevNext', 'runCallbacksOnInit', 'observer', 'observeParents', 'observeSlideChildren',
     // modules
     'a11y', '_autoplay', '_controller', 'coverflowEffect', 'cubeEffect', 'fadeEffect', 'flipEffect', 'creativeEffect', 'cardsEffect', 'hashNavigation', 'history', 'keyboard', 'mousewheel', '_navigation', '_pagination', 'parallax', '_scrollbar', '_thumbs', 'virtual', 'zoom', 'control', 'injectStyles', 'injectStylesUrls'];
 
