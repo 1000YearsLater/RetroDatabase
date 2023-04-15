@@ -499,9 +499,6 @@ declare const Swiper: DefineComponent<
    * Event will be fired on pagination show
    */
   paginationShow: (swiper: SwiperClass) => void;/**
-   * Event will be fired on zoom change
-   */
-  zoomChange: (swiper: SwiperClass, scale: number, imageEl: HTMLElement, slideEl: HTMLElement) => void;/**
    * Event will be fired on draggable scrollbar drag start
    */
   scrollbarDragStart: (swiper: SwiperClass, event: MouseEvent | TouchEvent | PointerEvent) => void;
@@ -514,7 +511,10 @@ declare const Swiper: DefineComponent<
   /**
    * Event will be fired on draggable scrollbar drag end
    */
-  scrollbarDragEnd: (swiper: SwiperClass, event: MouseEvent | TouchEvent | PointerEvent) => void;
+  scrollbarDragEnd: (swiper: SwiperClass, event: MouseEvent | TouchEvent | PointerEvent) => void;/**
+   * Event will be fired on zoom change
+   */
+  zoomChange: (swiper: SwiperClass, scale: number, imageEl: HTMLElement, slideEl: HTMLElement) => void;
     
   /**
    * Fired right after Swiper initialization.

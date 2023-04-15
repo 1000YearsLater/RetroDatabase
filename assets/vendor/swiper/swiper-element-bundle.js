@@ -1,5 +1,5 @@
 /**
- * Swiper Custom Element 9.2.0
+ * Swiper Custom Element 9.2.2
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: April 1, 2023
+ * Released on: April 15, 2023
  */
 
 (function () {
@@ -1139,7 +1139,7 @@
       // eslint-disable-next-line
       const minusOffset = swiper.isElement ? swiper.isHorizontal() ? swiper.wrapperEl.offsetLeft : swiper.wrapperEl.offsetTop : 0;
       for (let i = 0; i < slides.length; i += 1) {
-        slides[i].swiperSlideOffset = (swiper.isHorizontal() ? slides[i].offsetLeft : slides[i].offsetTop) - minusOffset;
+        slides[i].swiperSlideOffset = (swiper.isHorizontal() ? slides[i].offsetLeft : slides[i].offsetTop) - minusOffset - swiper.cssOverflowAdjustment();
       }
     }
 
@@ -1492,6 +1492,7 @@
         return translate;
       }
       let currentTranslate = getTranslate(wrapperEl, axis);
+      currentTranslate += swiper.cssOverflowAdjustment();
       if (rtl) currentTranslate = -currentTranslate;
       return currentTranslate || 0;
     }
@@ -1516,13 +1517,18 @@
         x = Math.floor(x);
         y = Math.floor(y);
       }
+      swiper.previousTranslate = swiper.translate;
+      swiper.translate = swiper.isHorizontal() ? x : y;
       if (params.cssMode) {
         wrapperEl[swiper.isHorizontal() ? 'scrollLeft' : 'scrollTop'] = swiper.isHorizontal() ? -x : -y;
       } else if (!params.virtualTranslate) {
+        if (swiper.isHorizontal()) {
+          x -= swiper.cssOverflowAdjustment();
+        } else {
+          y -= swiper.cssOverflowAdjustment();
+        }
         wrapperEl.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
       }
-      swiper.previousTranslate = swiper.translate;
-      swiper.translate = swiper.isHorizontal() ? x : y;
 
       // Check if we need to update progress
       let newProgress;
@@ -3492,6 +3498,11 @@
           progress: 0,
           velocity: 0,
           animating: false,
+          cssOverflowAdjustment() {
+            // Returns 0 unless `translate` is > 2**23
+            // Should be subtracted from css values to prevent overflow
+            return Math.trunc(this.translate / 2 ** 23) * 2 ** 23;
+          },
           // Locks
           allowSlideNext: swiper.params.allowSlideNext,
           allowSlidePrev: swiper.params.allowSlidePrev,
@@ -4082,7 +4093,7 @@
         if (previousFrom === from && previousTo === to && !force) {
           if (swiper.slidesGrid !== previousSlidesGrid && offset !== previousOffset) {
             swiper.slides.forEach(slideEl => {
-              slideEl.style[offsetProp] = `${offset}px`;
+              slideEl.style[offsetProp] = `${offset - Math.abs(swiper.cssOverflowAdjustment())}px`;
             });
           }
           swiper.updateProgress();
@@ -4163,7 +4174,7 @@
           });
         }
         elementChildren(swiper.slidesEl, '.swiper-slide, swiper-slide').forEach(slideEl => {
-          slideEl.style[offsetProp] = `${offset}px`;
+          slideEl.style[offsetProp] = `${offset - Math.abs(swiper.cssOverflowAdjustment())}px`;
         });
         onRendered();
       }
@@ -5336,6 +5347,18 @@
         }
         if (swiper.pagination.bullets) swiper.pagination.bullets.forEach(subEl => subEl.classList.remove(...params.bulletActiveClass.split(' ')));
       }
+      on('changeDirection', () => {
+        if (!swiper.pagination || !swiper.pagination.el) return;
+        const params = swiper.params.pagination;
+        let {
+          el
+        } = swiper.pagination;
+        el = makeElementsArray(el);
+        el.forEach(subEl => {
+          subEl.classList.remove(params.horizontalClass, params.verticalClass);
+          subEl.classList.add(swiper.isHorizontal() ? params.horizontalClass : params.verticalClass);
+        });
+      });
       on('init', () => {
         if (swiper.params.pagination.enabled === false) {
           // eslint-disable-next-line
@@ -6526,11 +6549,8 @@
         };
         return this;
       }
-      // xxx: for now i will just save one spline function to to
       function getInterpolateFunction(c) {
-        if (!swiper.controller.spline) {
-          swiper.controller.spline = swiper.params.loop ? new LinearSpline(swiper.slidesGrid, c.slidesGrid) : new LinearSpline(swiper.snapGrid, c.snapGrid);
-        }
+        swiper.controller.spline = swiper.params.loop ? new LinearSpline(swiper.slidesGrid, c.slidesGrid) : new LinearSpline(swiper.snapGrid, c.snapGrid);
       }
       function setTranslate(_t, byController) {
         const controlled = swiper.controller.control;
@@ -6553,6 +6573,9 @@
           }
           if (!controlledTranslate || swiper.params.controller.by === 'container') {
             multiplier = (c.maxTranslate() - c.minTranslate()) / (swiper.maxTranslate() - swiper.minTranslate());
+            if (Number.isNaN(multiplier) || !Number.isFinite(multiplier)) {
+              multiplier = 1;
+            }
             controlledTranslate = (translate - swiper.minTranslate()) * multiplier + c.minTranslate();
           }
           if (swiper.params.controller.inverse) {
@@ -6639,11 +6662,11 @@
         removeSpline();
       });
       on('setTranslate', (_s, translate, byController) => {
-        if (!swiper.controller.control) return;
+        if (!swiper.controller.control || swiper.controller.control.destroyed) return;
         swiper.controller.setTranslate(translate, byController);
       });
       on('setTransition', (_s, duration, byController) => {
-        if (!swiper.controller.control) return;
+        if (!swiper.controller.control || swiper.controller.control.destroyed) return;
         swiper.controller.setTransition(duration, byController);
       });
       Object.assign(swiper.controller, {
@@ -9010,7 +9033,7 @@
     }
 
     /**
-     * Swiper 9.2.0
+     * Swiper 9.2.2
      * Most modern mobile touch slider and framework with hardware accelerated transitions
      * https://swiperjs.com
      *
@@ -9018,7 +9041,7 @@
      *
      * Released under the MIT License
      *
-     * Released on: April 1, 2023
+     * Released on: April 15, 2023
      */
 
     // Swiper Class
@@ -9026,9 +9049,9 @@
     Swiper.use(modules);
 
     /* underscore in name -> watch for changes */
-    const paramsList = ['eventsPrefix', 'modules', 'init', '_direction', 'oneWayMovement', 'touchEventsTarget', 'initialSlide', '_speed', 'cssMode', 'updateOnWindowResize', 'resizeObserver', 'nested', 'focusableElements', '_enabled', '_width', '_height', 'preventInteractionOnTransition', 'userAgent', 'url', '_edgeSwipeDetection', '_edgeSwipeThreshold', '_freeMode', '_autoHeight', 'setWrapperSize', 'virtualTranslate', '_effect', 'breakpoints', '_spaceBetween', '_slidesPerView', 'maxBackfaceHiddenSlides', '_grid', '_slidesPerGroup', '_slidesPerGroupSkip', '_slidesPerGroupAuto', '_centeredSlides', '_centeredSlidesBounds', '_slidesOffsetBefore', '_slidesOffsetAfter', 'normalizeSlideIndex', '_centerInsufficientSlides', '_watchOverflow', 'roundLengths', 'touchRatio', 'touchAngle', 'simulateTouch', '_shortSwipes', '_longSwipes', 'longSwipesRatio', 'longSwipesMs', '_followFinger', 'allowTouchMove', '_threshold', 'touchMoveStopPropagation', 'touchStartPreventDefault', 'touchStartForcePreventDefault', 'touchReleaseOnEdges', 'uniqueNavElements', '_resistance', '_resistanceRatio', '_watchSlidesProgress', '_grabCursor', 'preventClicks', 'preventClicksPropagation', '_slideToClickedSlide', '_loop', 'loopedSlides', 'loopPreventsSliding', '_rewind', '_allowSlidePrev', '_allowSlideNext', '_swipeHandler', '_noSwiping', 'noSwipingClass', 'noSwipingSelector', 'passiveListeners', 'containerModifierClass', 'slideClass', 'slideActiveClass', 'slideVisibleClass', 'slideNextClass', 'slidePrevClass', 'wrapperClass', 'lazyPreloaderClass', 'lazyPreloadPrevNext', 'runCallbacksOnInit', 'observer', 'observeParents', 'observeSlideChildren',
+    const paramsList = ['eventsPrefix', 'injectStyles', 'injectStylesUrls', 'modules', 'init', '_direction', 'oneWayMovement', 'touchEventsTarget', 'initialSlide', '_speed', 'cssMode', 'updateOnWindowResize', 'resizeObserver', 'nested', 'focusableElements', '_enabled', '_width', '_height', 'preventInteractionOnTransition', 'userAgent', 'url', '_edgeSwipeDetection', '_edgeSwipeThreshold', '_freeMode', '_autoHeight', 'setWrapperSize', 'virtualTranslate', '_effect', 'breakpoints', '_spaceBetween', '_slidesPerView', 'maxBackfaceHiddenSlides', '_grid', '_slidesPerGroup', '_slidesPerGroupSkip', '_slidesPerGroupAuto', '_centeredSlides', '_centeredSlidesBounds', '_slidesOffsetBefore', '_slidesOffsetAfter', 'normalizeSlideIndex', '_centerInsufficientSlides', '_watchOverflow', 'roundLengths', 'touchRatio', 'touchAngle', 'simulateTouch', '_shortSwipes', '_longSwipes', 'longSwipesRatio', 'longSwipesMs', '_followFinger', 'allowTouchMove', '_threshold', 'touchMoveStopPropagation', 'touchStartPreventDefault', 'touchStartForcePreventDefault', 'touchReleaseOnEdges', 'uniqueNavElements', '_resistance', '_resistanceRatio', '_watchSlidesProgress', '_grabCursor', 'preventClicks', 'preventClicksPropagation', '_slideToClickedSlide', '_loop', 'loopedSlides', 'loopPreventsSliding', '_rewind', '_allowSlidePrev', '_allowSlideNext', '_swipeHandler', '_noSwiping', 'noSwipingClass', 'noSwipingSelector', 'passiveListeners', 'containerModifierClass', 'slideClass', 'slideActiveClass', 'slideVisibleClass', 'slideNextClass', 'slidePrevClass', 'wrapperClass', 'lazyPreloaderClass', 'lazyPreloadPrevNext', 'runCallbacksOnInit', 'observer', 'observeParents', 'observeSlideChildren',
     // modules
-    'a11y', '_autoplay', '_controller', 'coverflowEffect', 'cubeEffect', 'fadeEffect', 'flipEffect', 'creativeEffect', 'cardsEffect', 'hashNavigation', 'history', 'keyboard', 'mousewheel', '_navigation', '_pagination', 'parallax', '_scrollbar', '_thumbs', 'virtual', 'zoom', 'control', 'injectStyles', 'injectStylesUrls'];
+    'a11y', '_autoplay', '_controller', 'coverflowEffect', 'cubeEffect', 'fadeEffect', 'flipEffect', 'creativeEffect', 'cardsEffect', 'hashNavigation', 'history', 'keyboard', 'mousewheel', '_navigation', '_pagination', 'parallax', '_scrollbar', '_thumbs', 'virtual', 'zoom', 'control'];
 
     function isObject(o) {
       return typeof o === 'object' && o !== null && o.constructor && Object.prototype.toString.call(o).slice(8, -1) === 'Object';
