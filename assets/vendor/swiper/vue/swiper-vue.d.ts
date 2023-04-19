@@ -463,9 +463,6 @@ declare const Swiper: DefineComponent<
    * Event will be fired on key press
    */
   keyPress: (swiper: SwiperClass, keyCode: string) => void;/**
-   * Event will be fired on mousewheel scroll
-   */
-  scroll: (swiper: SwiperClass, event: WheelEvent) => void;/**
    * Event will be fired on navigation hide
    */
   navigationHide: (swiper: SwiperClass) => void;
@@ -481,6 +478,9 @@ declare const Swiper: DefineComponent<
    * Event will be fired on navigation next button click
    */
   navigationNext: (swiper: SwiperClass) => void;/**
+   * Event will be fired on mousewheel scroll
+   */
+  scroll: (swiper: SwiperClass, event: WheelEvent) => void;/**
    * Event will be fired after pagination rendered
    */
   paginationRender: (swiper: SwiperClass, paginationEl: HTMLElement) => void;

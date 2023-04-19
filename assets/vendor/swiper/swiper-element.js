@@ -1,5 +1,5 @@
 /**
- * Swiper Custom Element 9.2.2
+ * Swiper Custom Element 9.2.3
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: April 15, 2023
+ * Released on: April 19, 2023
  */
 
 (function () {
@@ -1385,7 +1385,9 @@
         realIndex = activeIndex;
       }
       Object.assign(swiper, {
+        previousSnapIndex,
         snapIndex,
+        previousRealIndex,
         realIndex,
         previousIndex,
         activeIndex
@@ -2799,7 +2801,6 @@
       }
     }
 
-    let timeout;
     function onResize() {
       const swiper = this;
       const {
@@ -2838,8 +2839,8 @@
         }
       }
       if (swiper.autoplay && swiper.autoplay.running && swiper.autoplay.paused) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
+        clearTimeout(swiper.autoplay.resizeTimeout);
+        swiper.autoplay.resizeTimeout = setTimeout(() => {
           if (swiper.autoplay && swiper.autoplay.running && swiper.autoplay.paused) {
             swiper.autoplay.resume();
           }
@@ -4401,6 +4402,7 @@
       if (paramName === 'init') return;
       paramName = paramName.replace('_', '');
       Object.defineProperty(SwiperContainer.prototype, paramName, {
+        configurable: true,
         get() {
           return (this.passedParams || {})[paramName];
         },

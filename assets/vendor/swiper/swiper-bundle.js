@@ -1,5 +1,5 @@
 /**
- * Swiper 9.2.2
+ * Swiper 9.2.3
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: April 15, 2023
+ * Released on: April 19, 2023
  */
 
 (function (global, factory) {
@@ -1415,7 +1415,9 @@
         realIndex = activeIndex;
       }
       Object.assign(swiper, {
+        previousSnapIndex,
         snapIndex,
+        previousRealIndex,
         realIndex,
         previousIndex,
         activeIndex
@@ -2829,7 +2831,6 @@
       }
     }
 
-    let timeout;
     function onResize() {
       const swiper = this;
       const {
@@ -2868,8 +2869,8 @@
         }
       }
       if (swiper.autoplay && swiper.autoplay.running && swiper.autoplay.paused) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
+        clearTimeout(swiper.autoplay.resizeTimeout);
+        swiper.autoplay.resizeTimeout = setTimeout(() => {
           if (swiper.autoplay && swiper.autoplay.running && swiper.autoplay.paused) {
             swiper.autoplay.resume();
           }
@@ -5087,10 +5088,12 @@
         const index = elementIndex(bulletEl) * swiper.params.slidesPerGroup;
         if (swiper.params.loop) {
           if (swiper.realIndex === index) return;
-          if (index < swiper.loopedSlides || index > swiper.slides.length - swiper.loopedSlides) {
+          const newSlideIndex = swiper.getSlideIndexByData(index);
+          const currentSlideIndex = swiper.getSlideIndexByData(swiper.realIndex);
+          if (newSlideIndex > swiper.slides.length - swiper.loopedSlides) {
             swiper.loopFix({
-              direction: index < swiper.loopedSlides ? 'prev' : 'next',
-              activeSlideIndex: index,
+              direction: newSlideIndex > currentSlideIndex ? 'next' : 'prev',
+              activeSlideIndex: newSlideIndex,
               slideTo: false
             });
           }
@@ -5108,13 +5111,17 @@
         el = makeElementsArray(el);
         // Current/Total
         let current;
+        let previousIndex;
         const slidesLength = swiper.virtual && swiper.params.virtual.enabled ? swiper.virtual.slides.length : swiper.slides.length;
         const total = swiper.params.loop ? Math.ceil(slidesLength / swiper.params.slidesPerGroup) : swiper.snapGrid.length;
         if (swiper.params.loop) {
+          previousIndex = swiper.previousRealIndex || 0;
           current = swiper.params.slidesPerGroup > 1 ? Math.floor(swiper.realIndex / swiper.params.slidesPerGroup) : swiper.realIndex;
         } else if (typeof swiper.snapIndex !== 'undefined') {
           current = swiper.snapIndex;
+          previousIndex = swiper.previousSnapIndex;
         } else {
+          previousIndex = swiper.previousIndex || 0;
           current = swiper.activeIndex || 0;
         }
         // Types
@@ -5128,8 +5135,8 @@
             el.forEach(subEl => {
               subEl.style[swiper.isHorizontal() ? 'width' : 'height'] = `${bulletSize * (params.dynamicMainBullets + 4)}px`;
             });
-            if (params.dynamicMainBullets > 1 && swiper.previousIndex !== undefined) {
-              dynamicBulletIndex += current - (swiper.previousIndex || 0);
+            if (params.dynamicMainBullets > 1 && previousIndex !== undefined) {
+              dynamicBulletIndex += current - (previousIndex || 0);
               if (dynamicBulletIndex > params.dynamicMainBullets - 1) {
                 dynamicBulletIndex = params.dynamicMainBullets - 1;
               } else if (dynamicBulletIndex < 0) {
