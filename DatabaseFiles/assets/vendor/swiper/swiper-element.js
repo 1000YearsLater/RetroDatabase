@@ -1,5 +1,5 @@
 /**
- * Swiper Custom Element 9.2.3
+ * Swiper Custom Element 9.2.4
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: April 19, 2023
+ * Released on: April 22, 2023
  */
 
 (function () {
@@ -1073,7 +1073,7 @@
       }
       const getSlideByIndex = index => {
         if (isVirtual) {
-          return swiper.getSlideIndexByData(index);
+          return swiper.slides[swiper.getSlideIndexByData(index)];
         }
         return swiper.slides[index];
       };
@@ -2170,6 +2170,9 @@
         });
       }
       swiper.recalcSlides();
+      if (params.slidesPerView === 'auto') {
+        swiper.updateSlides();
+      }
       if (params.watchSlidesProgress) {
         swiper.updateSlidesOffset();
       }
@@ -3694,7 +3697,8 @@
           }
         } else {
           if ((swiper.params.slidesPerView === 'auto' || swiper.params.slidesPerView > 1) && swiper.isEnd && !swiper.params.centeredSlides) {
-            translated = swiper.slideTo(swiper.slides.length - 1, 0, false, true);
+            const slides = swiper.virtual && swiper.params.virtual.enabled ? swiper.virtual.slides : swiper.slides;
+            translated = swiper.slideTo(slides.length - 1, 0, false, true);
           } else {
             translated = swiper.slideTo(swiper.activeIndex, 0, false, true);
           }

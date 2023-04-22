@@ -1,5 +1,5 @@
 /**
- * Swiper 9.2.3
+ * Swiper 9.2.4
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: April 19, 2023
+ * Released on: April 22, 2023
  */
 
 (function (global, factory) {
@@ -1103,7 +1103,7 @@
       }
       const getSlideByIndex = index => {
         if (isVirtual) {
-          return swiper.getSlideIndexByData(index);
+          return swiper.slides[swiper.getSlideIndexByData(index)];
         }
         return swiper.slides[index];
       };
@@ -2200,6 +2200,9 @@
         });
       }
       swiper.recalcSlides();
+      if (params.slidesPerView === 'auto') {
+        swiper.updateSlides();
+      }
       if (params.watchSlidesProgress) {
         swiper.updateSlidesOffset();
       }
@@ -3724,7 +3727,8 @@
           }
         } else {
           if ((swiper.params.slidesPerView === 'auto' || swiper.params.slidesPerView > 1) && swiper.isEnd && !swiper.params.centeredSlides) {
-            translated = swiper.slideTo(swiper.slides.length - 1, 0, false, true);
+            const slides = swiper.virtual && swiper.params.virtual.enabled ? swiper.virtual.slides : swiper.slides;
+            translated = swiper.slideTo(slides.length - 1, 0, false, true);
           } else {
             translated = swiper.slideTo(swiper.activeIndex, 0, false, true);
           }
@@ -7183,28 +7187,39 @@
         hashNavigation: {
           enabled: false,
           replaceState: false,
-          watchState: false
+          watchState: false,
+          getSlideIndex(_s, hash) {
+            if (swiper.virtual && swiper.params.virtual.enabled) {
+              const slideWithHash = swiper.slides.filter(slideEl => slideEl.getAttribute('data-hash') === hash)[0];
+              if (!slideWithHash) return 0;
+              const index = parseInt(slideWithHash.getAttribute('data-swiper-slide-index'), 10);
+              return index;
+            }
+            return swiper.getSlideIndex(elementChildren(swiper.slidesEl, `.${swiper.params.slideClass}[data-hash="${hash}"], swiper-slide[data-hash="${hash}"]`)[0]);
+          }
         }
       });
       const onHashChange = () => {
         emit('hashChange');
         const newHash = document.location.hash.replace('#', '');
-        const activeSlideHash = swiper.slides[swiper.activeIndex].getAttribute('data-hash');
+        const activeSlideEl = swiper.slidesEl.querySelector(`[data-swiper-slide-index="${swiper.activeIndex}"]`);
+        const activeSlideHash = activeSlideEl ? activeSlideEl.getAttribute('data-hash') : '';
         if (newHash !== activeSlideHash) {
-          const newIndex = swiper.getSlideIndex(elementChildren(swiper.slidesEl, `.${swiper.params.slideClass}[data-hash="${newHash}"], swiper-slide[data-hash="${newHash}"]`)[0]);
+          const newIndex = swiper.params.hashNavigation.getSlideIndex(swiper, newHash);
+          console.log(newIndex);
           if (typeof newIndex === 'undefined') return;
           swiper.slideTo(newIndex);
         }
       };
       const setHash = () => {
         if (!initialized || !swiper.params.hashNavigation.enabled) return;
+        const activeSlideEl = swiper.slidesEl.querySelector(`[data-swiper-slide-index="${swiper.activeIndex}"]`);
+        const activeSlideHash = activeSlideEl ? activeSlideEl.getAttribute('data-hash') || activeSlideEl.getAttribute('data-history') : '';
         if (swiper.params.hashNavigation.replaceState && window.history && window.history.replaceState) {
-          window.history.replaceState(null, null, `#${swiper.slides[swiper.activeIndex].getAttribute('data-hash')}` || '');
+          window.history.replaceState(null, null, `#${activeSlideHash}` || '');
           emit('hashSet');
         } else {
-          const slide = swiper.slides[swiper.activeIndex];
-          const hash = slide.getAttribute('data-hash') || slide.getAttribute('data-history');
-          document.location.hash = hash || '';
+          document.location.hash = activeSlideHash || '';
           emit('hashSet');
         }
       };
@@ -7214,14 +7229,8 @@
         const hash = document.location.hash.replace('#', '');
         if (hash) {
           const speed = 0;
-          for (let i = 0, length = swiper.slides.length; i < length; i += 1) {
-            const slide = swiper.slides[i];
-            const slideHash = slide.getAttribute('data-hash') || slide.getAttribute('data-history');
-            if (slideHash === hash) {
-              const index = swiper.getSlideIndex(slide);
-              swiper.slideTo(index, speed, swiper.params.runCallbacksOnInit, true);
-            }
-          }
+          const index = swiper.params.hashNavigation.getSlideIndex(swiper, hash);
+          swiper.slideTo(index || 0, speed, swiper.params.runCallbacksOnInit, true);
         }
         if (swiper.params.hashNavigation.watchState) {
           window.addEventListener('hashchange', onHashChange);
