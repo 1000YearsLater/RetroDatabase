@@ -1,5 +1,5 @@
 /**
- * Swiper Custom Element 9.2.4
+ * Swiper Custom Element 9.3.1
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: April 22, 2023
+ * Released on: May 10, 2023
  */
 
 (function () {
@@ -857,6 +857,8 @@
       }
       if (typeof spaceBetween === 'string' && spaceBetween.indexOf('%') >= 0) {
         spaceBetween = parseFloat(spaceBetween.replace('%', '')) / 100 * swiperSize;
+      } else if (typeof spaceBetween === 'string') {
+        spaceBetween = parseFloat(spaceBetween);
       }
       swiper.virtualSize = -spaceBetween;
 
@@ -966,10 +968,10 @@
       }
       swiper.virtualSize = Math.max(swiper.virtualSize, swiperSize) + offsetAfter;
       if (rtl && wrongRTL && (params.effect === 'slide' || params.effect === 'coverflow')) {
-        wrapperEl.style.width = `${swiper.virtualSize + params.spaceBetween}px`;
+        wrapperEl.style.width = `${swiper.virtualSize + spaceBetween}px`;
       }
       if (params.setWrapperSize) {
-        wrapperEl.style[getDirectionLabel('width')] = `${swiper.virtualSize + params.spaceBetween}px`;
+        wrapperEl.style[getDirectionLabel('width')] = `${swiper.virtualSize + spaceBetween}px`;
       }
       if (gridEnabled) {
         swiper.grid.updateWrapperSize(slideSize, snapGrid, getDirectionLabel);
@@ -1008,7 +1010,7 @@
         }
       }
       if (snapGrid.length === 0) snapGrid = [0];
-      if (params.spaceBetween !== 0) {
+      if (spaceBetween !== 0) {
         const key = swiper.isHorizontal() && rtl ? 'marginLeft' : getDirectionLabel('marginRight');
         slides.filter((_, slideIndex) => {
           if (!params.cssMode || params.loop) return true;
@@ -1023,9 +1025,9 @@
       if (params.centeredSlides && params.centeredSlidesBounds) {
         let allSlidesSize = 0;
         slidesSizesGrid.forEach(slideSizeValue => {
-          allSlidesSize += slideSizeValue + (params.spaceBetween ? params.spaceBetween : 0);
+          allSlidesSize += slideSizeValue + (spaceBetween || 0);
         });
-        allSlidesSize -= params.spaceBetween;
+        allSlidesSize -= spaceBetween;
         const maxSnap = allSlidesSize - swiperSize;
         snapGrid = snapGrid.map(snap => {
           if (snap < 0) return -offsetBefore;
@@ -1036,9 +1038,9 @@
       if (params.centerInsufficientSlides) {
         let allSlidesSize = 0;
         slidesSizesGrid.forEach(slideSizeValue => {
-          allSlidesSize += slideSizeValue + (params.spaceBetween ? params.spaceBetween : 0);
+          allSlidesSize += slideSizeValue + (spaceBetween || 0);
         });
-        allSlidesSize -= params.spaceBetween;
+        allSlidesSize -= spaceBetween;
         if (allSlidesSize < swiperSize) {
           const allSlidesOffset = (swiperSize - allSlidesSize) / 2;
           snapGrid.forEach((snap, snapIndex) => {
@@ -1165,14 +1167,20 @@
       });
       swiper.visibleSlidesIndexes = [];
       swiper.visibleSlides = [];
+      let spaceBetween = params.spaceBetween;
+      if (typeof spaceBetween === 'string' && spaceBetween.indexOf('%') >= 0) {
+        spaceBetween = parseFloat(spaceBetween.replace('%', '')) / 100 * swiper.size;
+      } else if (typeof spaceBetween === 'string') {
+        spaceBetween = parseFloat(spaceBetween);
+      }
       for (let i = 0; i < slides.length; i += 1) {
         const slide = slides[i];
         let slideOffset = slide.swiperSlideOffset;
         if (params.cssMode && params.centeredSlides) {
           slideOffset -= slides[0].swiperSlideOffset;
         }
-        const slideProgress = (offsetCenter + (params.centeredSlides ? swiper.minTranslate() : 0) - slideOffset) / (slide.swiperSlideSize + params.spaceBetween);
-        const originalSlideProgress = (offsetCenter - snapGrid[0] + (params.centeredSlides ? swiper.minTranslate() : 0) - slideOffset) / (slide.swiperSlideSize + params.spaceBetween);
+        const slideProgress = (offsetCenter + (params.centeredSlides ? swiper.minTranslate() : 0) - slideOffset) / (slide.swiperSlideSize + spaceBetween);
+        const originalSlideProgress = (offsetCenter - snapGrid[0] + (params.centeredSlides ? swiper.minTranslate() : 0) - slideOffset) / (slide.swiperSlideSize + spaceBetween);
         const slideBefore = -(offsetCenter - slideOffset);
         const slideAfter = slideBefore + swiper.slidesSizesGrid[i];
         const isVisible = slideBefore >= 0 && slideBefore < swiper.size - 1 || slideAfter > 1 && slideAfter <= swiper.size || slideBefore <= 0 && slideAfter >= swiper.size;
@@ -2188,12 +2196,16 @@
       }
       if (isPrev) {
         prependSlidesIndexes.forEach(index => {
+          swiper.slides[index].swiperLoopMoveDOM = true;
           slidesEl.prepend(swiper.slides[index]);
+          swiper.slides[index].swiperLoopMoveDOM = false;
         });
       }
       if (isNext) {
         appendSlidesIndexes.forEach(index => {
+          swiper.slides[index].swiperLoopMoveDOM = true;
           slidesEl.append(swiper.slides[index]);
+          swiper.slides[index].swiperLoopMoveDOM = false;
         });
       }
       swiper.recalcSlides();
@@ -6925,7 +6937,11 @@
       };
       const init = () => {
         const params = swiper.params.a11y;
-        swiper.el.append(liveRegion);
+        if (swiper.isElement) {
+          swiper.el.shadowEl.append(liveRegion);
+        } else {
+          swiper.el.append(liveRegion);
+        }
 
         // Container
         const containerEl = swiper.el;
@@ -6974,7 +6990,7 @@
         swiper.el.addEventListener('pointerup', handlePointerUp, true);
       };
       function destroy() {
-        if (liveRegion && liveRegion.length > 0) liveRegion.remove();
+        if (liveRegion) liveRegion.remove();
         let {
           nextEl,
           prevEl
@@ -7005,9 +7021,6 @@
         liveRegion = createElement('span', swiper.params.a11y.notificationClass);
         liveRegion.setAttribute('aria-live', 'assertive');
         liveRegion.setAttribute('aria-atomic', 'true');
-        if (swiper.isElement) {
-          liveRegion.setAttribute('slot', 'container-end');
-        }
       });
       on('afterInit', () => {
         if (!swiper.params.a11y.enabled) return;
@@ -7971,6 +7984,15 @@
       let slidesNumberEvenToRows;
       let slidesPerRow;
       let numFullColumns;
+      const getSpaceBetween = () => {
+        let spaceBetween = swiper.params.spaceBetween;
+        if (typeof spaceBetween === 'string' && spaceBetween.indexOf('%') >= 0) {
+          spaceBetween = parseFloat(spaceBetween.replace('%', '')) / 100 * swiper.size;
+        } else if (typeof spaceBetween === 'string') {
+          spaceBetween = parseFloat(spaceBetween);
+        }
+        return spaceBetween;
+      };
       const initSlides = slidesLength => {
         const {
           slidesPerView
@@ -7992,9 +8014,9 @@
       };
       const updateSlide = (i, slide, slidesLength, getDirectionLabel) => {
         const {
-          slidesPerGroup,
-          spaceBetween
+          slidesPerGroup
         } = swiper.params;
+        const spaceBetween = getSpaceBetween();
         const {
           rows,
           fill
@@ -8029,10 +8051,10 @@
       };
       const updateWrapperSize = (slideSize, snapGrid, getDirectionLabel) => {
         const {
-          spaceBetween,
           centeredSlides,
           roundLengths
         } = swiper.params;
+        const spaceBetween = getSpaceBetween();
         const {
           rows
         } = swiper.params.grid;
@@ -9049,7 +9071,7 @@
     }
 
     /**
-     * Swiper 9.2.4
+     * Swiper 9.3.1
      * Most modern mobile touch slider and framework with hardware accelerated transitions
      * https://swiperjs.com
      *
@@ -9057,7 +9079,7 @@
      *
      * Released under the MIT License
      *
-     * Released on: April 22, 2023
+     * Released on: May 10, 2023
      */
 
     // Swiper Class
@@ -9394,6 +9416,7 @@
         return this.injectStylesUrls || [];
       }
       render() {
+        if (this.rendered) return;
         if (globalInjectStyles) {
           // global styles
           addGlobalStyles(false, this);
@@ -9422,19 +9445,20 @@
       </div>
       <slot name="container-end"></slot>
       ${needsNavigation(this.passedParams) ? `
-        <div class="swiper-button-prev"></div>
-        <div class="swiper-button-next"></div>
+        <div part="button-prev" class="swiper-button-prev"></div>
+        <div part="button-next" class="swiper-button-next"></div>
       ` : ''}
       ${needsPagination(this.passedParams) ? `
-        <div class="swiper-pagination"></div>
+        <div part="pagination" class="swiper-pagination"></div>
       ` : ''}
       ${needsScrollbar(this.passedParams) ? `
-        <div class="swiper-scrollbar"></div>
+        <div part="scrollbar" class="swiper-scrollbar"></div>
       ` : ''}
     `;
         [...this.tempDiv.children].forEach(el => {
           this.shadowEl.appendChild(el);
         });
+        this.rendered = true;
       }
       initialize() {
         var _this = this;
@@ -9470,6 +9494,9 @@
         });
       }
       connectedCallback() {
+        if (this.initialized && this.nested && this.closest('swiper-slide') && this.closest('swiper-slide').swiperLoopMoveDOM) {
+          return;
+        }
         if (this.init === false || this.getAttribute('init') === 'false') {
           addGlobalStyles(true, this);
           return;
@@ -9477,6 +9504,9 @@
         this.initialize();
       }
       disconnectedCallback() {
+        if (this.nested && this.closest('swiper-slide') && this.closest('swiper-slide').swiperLoopMoveDOM) {
+          return;
+        }
         if (this.swiper && this.swiper.destroy) {
           this.swiper.destroy();
         }
