@@ -1,5 +1,5 @@
 /**
- * Swiper 10.0.4
+ * Swiper 10.1.0
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: July 8, 2023
+ * Released on: August 1, 2023
  */
 
 var Swiper = (function () {
@@ -609,13 +609,13 @@ var Swiper = (function () {
     const init = () => {
       if (!swiper.params.observer) return;
       if (swiper.params.observeParents) {
-        const containerParents = elementParents(swiper.el);
+        const containerParents = elementParents(swiper.hostEl);
         for (let i = 0; i < containerParents.length; i += 1) {
           attach(containerParents[i]);
         }
       }
       // Observe container
-      attach(swiper.el, {
+      attach(swiper.hostEl, {
         childList: swiper.params.observeSlideChildren
       });
 
@@ -2215,11 +2215,13 @@ var Swiper = (function () {
             swiper.slideTo(activeIndex + slidesPrepended, 0, false, true);
             if (setTranslate) {
               swiper.touches[swiper.isHorizontal() ? 'startX' : 'startY'] += diff;
+              swiper.touchEventsData.currentTranslate = swiper.translate;
             }
           }
         } else {
           if (setTranslate) {
             swiper.slideToLoop(slideRealIndex, 0, false, true);
+            swiper.touchEventsData.currentTranslate = swiper.translate;
           }
         }
       } else if (appendSlidesIndexes.length > 0 && isNext) {
@@ -2233,6 +2235,7 @@ var Swiper = (function () {
             swiper.slideTo(activeIndex - slidesAppended, 0, false, true);
             if (setTranslate) {
               swiper.touches[swiper.isHorizontal() ? 'startX' : 'startY'] += diff;
+              swiper.touchEventsData.currentTranslate = swiper.translate;
             }
           }
         } else {
@@ -3797,7 +3800,7 @@ var Swiper = (function () {
         return false;
       }
       el.swiper = swiper;
-      if (el.parentNode && el.parentNode.host) {
+      if (el.parentNode && el.parentNode.host && el.parentNode.host.nodeName === 'SWIPER-CONTAINER') {
         swiper.isElement = true;
       }
       const getWrapperSelector = () => {
@@ -3823,7 +3826,7 @@ var Swiper = (function () {
       Object.assign(swiper, {
         el,
         wrapperEl,
-        slidesEl: swiper.isElement ? el.parentNode.host : wrapperEl,
+        slidesEl: swiper.isElement && !el.parentNode.host.slideSlots ? el.parentNode.host : wrapperEl,
         hostEl: swiper.isElement ? el.parentNode.host : el,
         mounted: true,
         // RTL
