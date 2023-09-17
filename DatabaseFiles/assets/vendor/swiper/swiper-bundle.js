@@ -1,5 +1,5 @@
 /**
- * Swiper 10.1.0
+ * Swiper 10.2.0
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: August 1, 2023
+ * Released on: August 17, 2023
  */
 
 var Swiper = (function () {
@@ -1314,7 +1314,10 @@ var Swiper = (function () {
     const slideSelector = () => swiper.isElement ? `swiper-slide` : `.${swiper.params.slideClass}`;
     const slideEl = imageEl.closest(slideSelector());
     if (slideEl) {
-      const lazyEl = slideEl.querySelector(`.${swiper.params.lazyPreloaderClass}`);
+      let lazyEl = slideEl.querySelector(`.${swiper.params.lazyPreloaderClass}`);
+      if (!lazyEl && swiper.isElement) {
+        lazyEl = slideEl.shadowRoot.querySelector(`.${swiper.params.lazyPreloaderClass}`);
+      }
       if (lazyEl) lazyEl.remove();
     }
   };
@@ -1671,6 +1674,7 @@ var Swiper = (function () {
     const swiper = this;
     if (!swiper.params.cssMode) {
       swiper.wrapperEl.style.transitionDuration = `${duration}ms`;
+      swiper.wrapperEl.style.transitionDelay = duration === 0 ? `0ms` : '';
     }
     swiper.emit('setTransition', duration, byController);
   }
@@ -2275,7 +2279,6 @@ var Swiper = (function () {
     if (swiper.controller && swiper.controller.control && !byController) {
       const loopParams = {
         slideRealIndex,
-        slideTo: false,
         direction,
         setTranslate,
         activeSlideIndex,
@@ -2283,10 +2286,16 @@ var Swiper = (function () {
       };
       if (Array.isArray(swiper.controller.control)) {
         swiper.controller.control.forEach(c => {
-          if (!c.destroyed && c.params.loop) c.loopFix(loopParams);
+          if (!c.destroyed && c.params.loop) c.loopFix({
+            ...loopParams,
+            slideTo: c.params.slidesPerView === params.slidesPerView ? slideTo : false
+          });
         });
       } else if (swiper.controller.control instanceof swiper.constructor && swiper.controller.control.params.loop) {
-        swiper.controller.control.loopFix(loopParams);
+        swiper.controller.control.loopFix({
+          ...loopParams,
+          slideTo: swiper.controller.control.params.slidesPerView === params.slidesPerView ? slideTo : false
+        });
       }
     }
     swiper.emit('loopFix');
@@ -2718,8 +2727,8 @@ var Swiper = (function () {
     if (pointerIndex >= 0) {
       data.evCache.splice(pointerIndex, 1);
     }
-    if (['pointercancel', 'pointerout', 'pointerleave'].includes(event.type)) {
-      const proceed = event.type === 'pointercancel' && (swiper.browser.isSafari || swiper.browser.isWebView);
+    if (['pointercancel', 'pointerout', 'pointerleave', 'contextmenu'].includes(event.type)) {
+      const proceed = ['pointercancel', 'contextmenu'].includes(event.type) && (swiper.browser.isSafari || swiper.browser.isWebView);
       if (!proceed) {
         return;
       }
@@ -2998,6 +3007,9 @@ var Swiper = (function () {
       passive: true
     });
     document[domMethod]('pointerleave', swiper.onTouchEnd, {
+      passive: true
+    });
+    document[domMethod]('contextmenu', swiper.onTouchEnd, {
       passive: true
     });
 
@@ -3906,7 +3918,11 @@ var Swiper = (function () {
 
       // Attach events
       swiper.attachEvents();
-      [...swiper.el.querySelectorAll('[loading="lazy"]')].forEach(imageEl => {
+      const lazyElements = [...swiper.el.querySelectorAll('[loading="lazy"]')];
+      if (swiper.isElement) {
+        lazyElements.push(...swiper.hostEl.querySelectorAll('[loading="lazy"]'));
+      }
+      lazyElements.forEach(imageEl => {
         if (imageEl.complete) {
           processLazyPreloader(swiper, imageEl);
         } else {
@@ -5124,14 +5140,20 @@ var Swiper = (function () {
       const index = elementIndex(bulletEl) * swiper.params.slidesPerGroup;
       if (swiper.params.loop) {
         if (swiper.realIndex === index) return;
+        const realIndex = swiper.realIndex;
         const newSlideIndex = swiper.getSlideIndexByData(index);
         const currentSlideIndex = swiper.getSlideIndexByData(swiper.realIndex);
         if (newSlideIndex > swiper.slides.length - swiper.loopedSlides) {
+          const indexBeforeLoopFix = swiper.activeIndex;
           swiper.loopFix({
             direction: newSlideIndex > currentSlideIndex ? 'next' : 'prev',
             activeSlideIndex: newSlideIndex,
             slideTo: false
           });
+          const indexAfterFix = swiper.activeIndex;
+          if (indexBeforeLoopFix === indexAfterFix) {
+            swiper.slideToLoop(realIndex, 0, false, true);
+          }
         }
         swiper.slideToLoop(index);
       } else {
@@ -5362,7 +5384,7 @@ var Swiper = (function () {
       el = makeElementsArray(el);
       el.forEach(subEl => {
         if (params.type === 'bullets' && params.clickable) {
-          subEl.classList.add(params.clickableClass);
+          subEl.classList.add(...(params.clickableClass || '').split(' '));
         }
         subEl.classList.add(params.modifierClass + params.type);
         subEl.classList.add(swiper.isHorizontal() ? params.horizontalClass : params.verticalClass);
@@ -5395,6 +5417,7 @@ var Swiper = (function () {
           subEl.classList.remove(params.modifierClass + params.type);
           subEl.classList.remove(swiper.isHorizontal() ? params.horizontalClass : params.verticalClass);
           if (params.clickable) {
+            subEl.classList.remove(...(params.clickableClass || '').split(' '));
             subEl.removeEventListener('click', onBulletClick);
           }
         });
@@ -5856,6 +5879,7 @@ var Swiper = (function () {
         enabled: false
       }
     });
+    const elementsSelector = '[data-swiper-parallax], [data-swiper-parallax-x], [data-swiper-parallax-y], [data-swiper-parallax-opacity], [data-swiper-parallax-scale]';
     const setTransform = (el, progress) => {
       const {
         rtl
@@ -5907,9 +5931,14 @@ var Swiper = (function () {
         el,
         slides,
         progress,
-        snapGrid
+        snapGrid,
+        isElement
       } = swiper;
-      elementChildren(el, '[data-swiper-parallax], [data-swiper-parallax-x], [data-swiper-parallax-y], [data-swiper-parallax-opacity], [data-swiper-parallax-scale]').forEach(subEl => {
+      const elements = elementChildren(el, elementsSelector);
+      if (swiper.isElement) {
+        elements.push(...elementChildren(swiper.hostEl, elementsSelector));
+      }
+      elements.forEach(subEl => {
         setTransform(subEl, progress);
       });
       slides.forEach((slideEl, slideIndex) => {
@@ -5918,7 +5947,7 @@ var Swiper = (function () {
           slideProgress += Math.ceil(slideIndex / 2) - progress * (snapGrid.length - 1);
         }
         slideProgress = Math.min(Math.max(slideProgress, -1), 1);
-        slideEl.querySelectorAll('[data-swiper-parallax], [data-swiper-parallax-x], [data-swiper-parallax-y], [data-swiper-parallax-opacity], [data-swiper-parallax-scale], [data-swiper-parallax-rotate]').forEach(subEl => {
+        slideEl.querySelectorAll(`${elementsSelector}, [data-swiper-parallax-rotate]`).forEach(subEl => {
           setTransform(subEl, slideProgress);
         });
       });
@@ -5928,9 +5957,14 @@ var Swiper = (function () {
         duration = swiper.params.speed;
       }
       const {
-        el
+        el,
+        hostEl
       } = swiper;
-      el.querySelectorAll('[data-swiper-parallax], [data-swiper-parallax-x], [data-swiper-parallax-y], [data-swiper-parallax-opacity], [data-swiper-parallax-scale]').forEach(parallaxEl => {
+      const elements = [...el.querySelectorAll(elementsSelector)];
+      if (swiper.isElement) {
+        elements.push(...hostEl.querySelectorAll(elementsSelector));
+      }
+      elements.forEach(parallaxEl => {
         let parallaxDuration = parseInt(parallaxEl.getAttribute('data-swiper-parallax-duration'), 10) || duration;
         if (duration === 0) parallaxDuration = 0;
         parallaxEl.style.transitionDuration = `${parallaxDuration}ms`;
@@ -7484,6 +7518,7 @@ var Swiper = (function () {
     const onPointerEnter = e => {
       if (e.pointerType !== 'mouse') return;
       pausedByInteraction = true;
+      if (swiper.animating || swiper.autoplay.paused) return;
       pause(true);
     };
     const onPointerLeave = e => {
@@ -9102,7 +9137,7 @@ var Swiper = (function () {
   }
 
   /**
-   * Swiper 10.1.0
+   * Swiper 10.2.0
    * Most modern mobile touch slider and framework with hardware accelerated transitions
    * https://swiperjs.com
    *
@@ -9110,7 +9145,7 @@ var Swiper = (function () {
    *
    * Released under the MIT License
    *
-   * Released on: August 1, 2023
+   * Released on: August 17, 2023
    */
 
 
