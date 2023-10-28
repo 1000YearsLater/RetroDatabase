@@ -75,21 +75,6 @@ function Pagination(_ref) {
     const index = elementIndex(bulletEl) * swiper.params.slidesPerGroup;
     if (swiper.params.loop) {
       if (swiper.realIndex === index) return;
-      const realIndex = swiper.realIndex;
-      const newSlideIndex = swiper.getSlideIndexByData(index);
-      const currentSlideIndex = swiper.getSlideIndexByData(swiper.realIndex);
-      if (newSlideIndex > swiper.slides.length - swiper.loopedSlides) {
-        const indexBeforeLoopFix = swiper.activeIndex;
-        swiper.loopFix({
-          direction: newSlideIndex > currentSlideIndex ? 'next' : 'prev',
-          activeSlideIndex: newSlideIndex,
-          slideTo: false
-        });
-        const indexAfterFix = swiper.activeIndex;
-        if (indexBeforeLoopFix === indexAfterFix) {
-          swiper.slideToLoop(realIndex, 0, false, true);
-        }
-      }
       swiper.slideToLoop(index);
     } else {
       swiper.slideTo(index);
@@ -240,7 +225,7 @@ function Pagination(_ref) {
     // Render Container
     const params = swiper.params.pagination;
     if (isPaginationDisabled()) return;
-    const slidesLength = swiper.virtual && swiper.params.virtual.enabled ? swiper.virtual.slides.length : swiper.slides.length;
+    const slidesLength = swiper.virtual && swiper.params.virtual.enabled ? swiper.virtual.slides.length : swiper.grid && swiper.params.grid.rows > 1 ? swiper.slides.length / Math.ceil(swiper.params.grid.rows) : swiper.slides.length;
     let el = swiper.pagination.el;
     el = makeElementsArray(el);
     let paginationHTML = '';

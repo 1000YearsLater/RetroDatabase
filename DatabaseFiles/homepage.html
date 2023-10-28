@@ -4,16 +4,17 @@
 <head>
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
   <script src="assets/vendor/jquery/jquery.js"></script>
   <meta name="HandheldFriendly" content="True">
   <meta name="MobileOptimized" content="320">
+  <meta name="viewport" id="metaViewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui" />
 
 <!-- Website title and description -->
   <meta name="author" content="Ryzen5-3600">
   <title>1000 Years Later: Home Page</title>
-  <meta content="Ryzen5-3600's services are free and Ryzen5-3600 don't expect any money in return for Ryzen5-3600's services and Ryzen5-3600's free services are open source." name="description">
-  <meta content="Ryzen5-3600's services are free and Ryzen5-3600 don't expect any money in return for Ryzen5-3600's services and Ryzen5-3600's free services are open source." name="keywords">
+  <meta content="Ryzen5-3600's services and projects are always open source." name="description">
+  <meta content="Ryzen5-3600's services and projects are always open source." name="keywords">
 
   <!-- Favicons -->
   <link href="images/logo/1000YearsLater.png" rel="icon">
@@ -24,6 +25,11 @@
 
   <!-- Main CSS File -->
   <link href="assets/css/style.css" rel="stylesheet">
+
+  <script>
+    if(navigator.userAgent.toLowerCase().indexOf('android') > -1)
+    document.getElementById('metaViewport').setAttribute('content', 'width='+screen.width+', initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+  </script>
 
 </head>
 
@@ -167,7 +173,7 @@
 
     <div class="container">
       <div class="copyright">
-        2019-2023 &copy; Copyright <strong>1000 Years Later (Admin/Owner - Whitecrystal#7596), Team Unusual, and</strong> <a href="https://R5-3600.github.io/about-me/">Ryzen5-3600 (Website creator/designer - Xxdarkestwolfxx#1219)</a>. All Rights Reserved. All rights reserved. Any questions, you can view my privacy policy and contact me at: <a href="https://r5-3600.github.io/privacy-policy/privacy-policy-7.html">privacy policy and contact information</a>.
+        July 4, 2019-2023 &copy; Copyright <strong>1000 Years Later (Admin/Owner - Whitecrystal#7596), Team Unusual, and</strong> <a href="https://R5-3600.github.io/about-me/">Ryzen5-3600 (Website creator/designer - Xxdarkestwolfxx#1219)</a>. All Rights Reserved. All rights reserved. Any questions, you can view my privacy policy and contact me at: <a href="https://r5-3600.github.io/privacy-policy/privacy-policy-7.html">privacy policy and contact information</a>.
       </div>
       <br><br>
       <figure id="home-image">
@@ -187,7 +193,7 @@
 		<br><br>
 		&
 		<br><br>
-		Swiper JS version: 10.2.0
+		Swiper JS version: 11.0.3
 				
       </div>
     </div>

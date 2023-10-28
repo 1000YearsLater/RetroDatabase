@@ -1,5 +1,5 @@
 /**
- * Swiper Custom Element 10.2.0
+ * Swiper Custom Element 11.0.3
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: August 17, 2023
+ * Released on: October 26, 2023
  */
 
 (function () {
@@ -155,6 +155,13 @@
     const win = typeof window !== 'undefined' ? window : {};
     extend$2(win, ssrWindow);
     return win;
+  }
+
+  function classesToTokens(classes) {
+    if (classes === void 0) {
+      classes = '';
+    }
+    return classes.trim().split(' ').filter(c => !!c.trim());
   }
 
   function deleteProps(obj) {
@@ -336,12 +343,20 @@
     }
     return [...element.children].filter(el => el.matches(selector));
   }
+  function showWarning(text) {
+    try {
+      console.warn(text);
+      return;
+    } catch (err) {
+      // err
+    }
+  }
   function createElement(tag, classes) {
     if (classes === void 0) {
       classes = [];
     }
     const el = document.createElement(tag);
-    el.classList.add(...(Array.isArray(classes) ? classes : [classes]));
+    el.classList.add(...(Array.isArray(classes) ? classes : classesToTokens(classes)));
     return el;
   }
   function elementOffset(el) {
@@ -804,24 +819,8 @@
 
   function updateSlides() {
     const swiper = this;
-    function getDirectionLabel(property) {
-      if (swiper.isHorizontal()) {
-        return property;
-      }
-      // prettier-ignore
-      return {
-        'width': 'height',
-        'margin-top': 'margin-left',
-        'margin-bottom ': 'margin-right',
-        'margin-left': 'margin-top',
-        'margin-right': 'margin-bottom',
-        'padding-left': 'padding-top',
-        'padding-right': 'padding-bottom',
-        'marginRight': 'marginBottom'
-      }[property];
-    }
     function getDirectionPropertyValue(node, label) {
-      return parseFloat(node.getPropertyValue(getDirectionLabel(label)) || 0);
+      return parseFloat(node.getPropertyValue(swiper.getDirectionLabel(label)) || 0);
     }
     const params = swiper.params;
     const {
@@ -880,7 +879,9 @@
     }
     const gridEnabled = params.grid && params.grid.rows > 1 && swiper.grid;
     if (gridEnabled) {
-      swiper.grid.initSlides(slidesLength);
+      swiper.grid.initSlides(slides);
+    } else if (swiper.grid) {
+      swiper.grid.unsetSlides();
     }
 
     // Calc slides
@@ -893,13 +894,13 @@
       let slide;
       if (slides[i]) slide = slides[i];
       if (gridEnabled) {
-        swiper.grid.updateSlide(i, slide, slidesLength, getDirectionLabel);
+        swiper.grid.updateSlide(i, slide, slides);
       }
       if (slides[i] && elementStyle(slide, 'display') === 'none') continue; // eslint-disable-line
 
       if (params.slidesPerView === 'auto') {
         if (shouldResetSlideSize) {
-          slides[i].style[getDirectionLabel('width')] = ``;
+          slides[i].style[swiper.getDirectionLabel('width')] = ``;
         }
         const slideStyles = getComputedStyle(slide);
         const currentTransform = slide.style.transform;
@@ -941,7 +942,7 @@
         slideSize = (swiperSize - (params.slidesPerView - 1) * spaceBetween) / params.slidesPerView;
         if (params.roundLengths) slideSize = Math.floor(slideSize);
         if (slides[i]) {
-          slides[i].style[getDirectionLabel('width')] = `${slideSize}px`;
+          slides[i].style[swiper.getDirectionLabel('width')] = `${slideSize}px`;
         }
       }
       if (slides[i]) {
@@ -971,10 +972,10 @@
       wrapperEl.style.width = `${swiper.virtualSize + spaceBetween}px`;
     }
     if (params.setWrapperSize) {
-      wrapperEl.style[getDirectionLabel('width')] = `${swiper.virtualSize + spaceBetween}px`;
+      wrapperEl.style[swiper.getDirectionLabel('width')] = `${swiper.virtualSize + spaceBetween}px`;
     }
     if (gridEnabled) {
-      swiper.grid.updateWrapperSize(slideSize, snapGrid, getDirectionLabel);
+      swiper.grid.updateWrapperSize(slideSize, snapGrid);
     }
 
     // Remove last grid elements depending on width
@@ -1011,7 +1012,7 @@
     }
     if (snapGrid.length === 0) snapGrid = [0];
     if (spaceBetween !== 0) {
-      const key = swiper.isHorizontal() && rtl ? 'marginLeft' : getDirectionLabel('marginRight');
+      const key = swiper.isHorizontal() && rtl ? 'marginLeft' : swiper.getDirectionLabel('marginRight');
       slides.filter((_, slideIndex) => {
         if (!params.cssMode || params.loop) return true;
         if (slideIndex === slides.length - 1) {
@@ -1163,7 +1164,7 @@
 
     // Visible Slides
     slides.forEach(slideEl => {
-      slideEl.classList.remove(params.slideVisibleClass);
+      slideEl.classList.remove(params.slideVisibleClass, params.slideFullyVisibleClass);
     });
     swiper.visibleSlidesIndexes = [];
     swiper.visibleSlides = [];
@@ -1183,11 +1184,15 @@
       const originalSlideProgress = (offsetCenter - snapGrid[0] + (params.centeredSlides ? swiper.minTranslate() : 0) - slideOffset) / (slide.swiperSlideSize + spaceBetween);
       const slideBefore = -(offsetCenter - slideOffset);
       const slideAfter = slideBefore + swiper.slidesSizesGrid[i];
+      const isFullyVisible = slideBefore >= 0 && slideBefore <= swiper.size - swiper.slidesSizesGrid[i];
       const isVisible = slideBefore >= 0 && slideBefore < swiper.size - 1 || slideAfter > 1 && slideAfter <= swiper.size || slideBefore <= 0 && slideAfter >= swiper.size;
       if (isVisible) {
         swiper.visibleSlides.push(slide);
         swiper.visibleSlidesIndexes.push(i);
         slides[i].classList.add(params.slideVisibleClass);
+      }
+      if (isFullyVisible) {
+        slides[i].classList.add(params.slideFullyVisibleClass);
       }
       slide.progress = rtl ? -slideProgress : slideProgress;
       slide.originalProgress = rtl ? -originalSlideProgress : originalSlideProgress;
@@ -1266,6 +1271,7 @@
       activeIndex
     } = swiper;
     const isVirtual = swiper.virtual && params.virtual.enabled;
+    const gridEnabled = swiper.grid && params.grid && params.grid.rows > 1;
     const getFilteredSlide = selector => {
       return elementChildren(slidesEl, `.${params.slideClass}${selector}, swiper-slide${selector}`)[0];
     };
@@ -1273,6 +1279,8 @@
       slideEl.classList.remove(params.slideActiveClass, params.slideNextClass, params.slidePrevClass);
     });
     let activeSlide;
+    let prevSlide;
+    let nextSlide;
     if (isVirtual) {
       if (params.loop) {
         let slideIndex = activeIndex - swiper.virtual.slidesBefore;
@@ -1283,27 +1291,42 @@
         activeSlide = getFilteredSlide(`[data-swiper-slide-index="${activeIndex}"]`);
       }
     } else {
-      activeSlide = slides[activeIndex];
+      if (gridEnabled) {
+        activeSlide = slides.filter(slideEl => slideEl.column === activeIndex)[0];
+        nextSlide = slides.filter(slideEl => slideEl.column === activeIndex + 1)[0];
+        prevSlide = slides.filter(slideEl => slideEl.column === activeIndex - 1)[0];
+      } else {
+        activeSlide = slides[activeIndex];
+      }
     }
     if (activeSlide) {
       // Active classes
       activeSlide.classList.add(params.slideActiveClass);
+      if (gridEnabled) {
+        if (nextSlide) {
+          nextSlide.classList.add(params.slideNextClass);
+        }
+        if (prevSlide) {
+          prevSlide.classList.add(params.slidePrevClass);
+        }
+      } else {
+        // Next Slide
+        nextSlide = elementNextAll(activeSlide, `.${params.slideClass}, swiper-slide`)[0];
+        if (params.loop && !nextSlide) {
+          nextSlide = slides[0];
+        }
+        if (nextSlide) {
+          nextSlide.classList.add(params.slideNextClass);
+        }
 
-      // Next Slide
-      let nextSlide = elementNextAll(activeSlide, `.${params.slideClass}, swiper-slide`)[0];
-      if (params.loop && !nextSlide) {
-        nextSlide = slides[0];
-      }
-      if (nextSlide) {
-        nextSlide.classList.add(params.slideNextClass);
-      }
-      // Prev Slide
-      let prevSlide = elementPrevAll(activeSlide, `.${params.slideClass}, swiper-slide`)[0];
-      if (params.loop && !prevSlide === 0) {
-        prevSlide = slides[slides.length - 1];
-      }
-      if (prevSlide) {
-        prevSlide.classList.add(params.slidePrevClass);
+        // Prev Slide
+        prevSlide = elementPrevAll(activeSlide, `.${params.slideClass}, swiper-slide`)[0];
+        if (params.loop && !prevSlide === 0) {
+          prevSlide = slides[slides.length - 1];
+        }
+        if (prevSlide) {
+          prevSlide.classList.add(params.slidePrevClass);
+        }
       }
     }
     swiper.emitSlidesClasses();
@@ -1316,7 +1339,17 @@
     if (slideEl) {
       let lazyEl = slideEl.querySelector(`.${swiper.params.lazyPreloaderClass}`);
       if (!lazyEl && swiper.isElement) {
-        lazyEl = slideEl.shadowRoot.querySelector(`.${swiper.params.lazyPreloaderClass}`);
+        if (slideEl.shadowRoot) {
+          lazyEl = slideEl.shadowRoot.querySelector(`.${swiper.params.lazyPreloaderClass}`);
+        } else {
+          // init later
+          requestAnimationFrame(() => {
+            if (slideEl.shadowRoot) {
+              lazyEl = slideEl.shadowRoot.querySelector(`.${swiper.params.lazyPreloaderClass}`);
+              if (lazyEl) lazyEl.remove();
+            }
+          });
+        }
       }
       if (lazyEl) lazyEl.remove();
     }
@@ -1418,22 +1451,37 @@
       snapIndex = skip + Math.floor((activeIndex - skip) / params.slidesPerGroup);
     }
     if (snapIndex >= snapGrid.length) snapIndex = snapGrid.length - 1;
-    if (activeIndex === previousIndex) {
+    if (activeIndex === previousIndex && !swiper.params.loop) {
       if (snapIndex !== previousSnapIndex) {
         swiper.snapIndex = snapIndex;
         swiper.emit('snapIndexChange');
       }
-      if (swiper.params.loop && swiper.virtual && swiper.params.virtual.enabled) {
-        swiper.realIndex = getVirtualRealIndex(activeIndex);
-      }
       return;
     }
+    if (activeIndex === previousIndex && swiper.params.loop && swiper.virtual && swiper.params.virtual.enabled) {
+      swiper.realIndex = getVirtualRealIndex(activeIndex);
+      return;
+    }
+    const gridEnabled = swiper.grid && params.grid && params.grid.rows > 1;
+
     // Get real index
     let realIndex;
     if (swiper.virtual && params.virtual.enabled && params.loop) {
       realIndex = getVirtualRealIndex(activeIndex);
+    } else if (gridEnabled) {
+      const firstSlideInColumn = swiper.slides.filter(slideEl => slideEl.column === activeIndex)[0];
+      let activeSlideIndex = parseInt(firstSlideInColumn.getAttribute('data-swiper-slide-index'), 10);
+      if (Number.isNaN(activeSlideIndex)) {
+        activeSlideIndex = Math.max(swiper.slides.indexOf(firstSlideInColumn), 0);
+      }
+      realIndex = Math.floor(activeSlideIndex / params.grid.rows);
     } else if (swiper.slides[activeIndex]) {
-      realIndex = parseInt(swiper.slides[activeIndex].getAttribute('data-swiper-slide-index') || activeIndex, 10);
+      const slideIndex = swiper.slides[activeIndex].getAttribute('data-swiper-slide-index');
+      if (slideIndex) {
+        realIndex = parseInt(slideIndex, 10);
+      } else {
+        realIndex = activeIndex;
+      }
     } else {
       realIndex = activeIndex;
     }
@@ -1450,18 +1498,25 @@
     }
     swiper.emit('activeIndexChange');
     swiper.emit('snapIndexChange');
-    if (previousRealIndex !== realIndex) {
-      swiper.emit('realIndexChange');
-    }
     if (swiper.initialized || swiper.params.runCallbacksOnInit) {
+      if (previousRealIndex !== realIndex) {
+        swiper.emit('realIndexChange');
+      }
       swiper.emit('slideChange');
     }
   }
 
-  function updateClickedSlide(e) {
+  function updateClickedSlide(el, path) {
     const swiper = this;
     const params = swiper.params;
-    const slide = e.closest(`.${params.slideClass}, swiper-slide`);
+    let slide = el.closest(`.${params.slideClass}, swiper-slide`);
+    if (!slide && swiper.isElement && path && path.length > 1 && path.includes(el)) {
+      [...path.slice(path.indexOf(el) + 1, path.length)].forEach(pathEl => {
+        if (!slide && pathEl.matches && pathEl.matches(`.${params.slideClass}, swiper-slide`)) {
+          slide = pathEl;
+        }
+      });
+    }
     let slideFound = false;
     let slideIndex;
     if (slide) {
@@ -1920,16 +1975,58 @@
       index = indexAsNumber;
     }
     const swiper = this;
+    const gridEnabled = swiper.grid && swiper.params.grid && swiper.params.grid.rows > 1;
     let newIndex = index;
     if (swiper.params.loop) {
       if (swiper.virtual && swiper.params.virtual.enabled) {
         // eslint-disable-next-line
         newIndex = newIndex + swiper.virtual.slidesBefore;
       } else {
-        newIndex = swiper.getSlideIndexByData(newIndex);
+        let targetSlideIndex;
+        if (gridEnabled) {
+          const slideIndex = newIndex * swiper.params.grid.rows;
+          targetSlideIndex = swiper.slides.filter(slideEl => slideEl.getAttribute('data-swiper-slide-index') * 1 === slideIndex)[0].column;
+        } else {
+          targetSlideIndex = swiper.getSlideIndexByData(newIndex);
+        }
+        const cols = gridEnabled ? Math.ceil(swiper.slides.length / swiper.params.grid.rows) : swiper.slides.length;
+        const {
+          centeredSlides
+        } = swiper.params;
+        let slidesPerView = swiper.params.slidesPerView;
+        if (slidesPerView === 'auto') {
+          slidesPerView = swiper.slidesPerViewDynamic();
+        } else {
+          slidesPerView = Math.ceil(parseFloat(swiper.params.slidesPerView, 10));
+          if (centeredSlides && slidesPerView % 2 === 0) {
+            slidesPerView = slidesPerView + 1;
+          }
+        }
+        let needLoopFix = cols - targetSlideIndex < slidesPerView;
+        if (centeredSlides) {
+          needLoopFix = needLoopFix || targetSlideIndex < Math.ceil(slidesPerView / 2);
+        }
+        if (needLoopFix) {
+          const direction = centeredSlides ? targetSlideIndex < swiper.activeIndex ? 'prev' : 'next' : targetSlideIndex - swiper.activeIndex - 1 < swiper.params.slidesPerView ? 'next' : 'prev';
+          swiper.loopFix({
+            direction,
+            slideTo: true,
+            activeSlideIndex: direction === 'next' ? targetSlideIndex + 1 : targetSlideIndex - cols + 1,
+            slideRealIndex: direction === 'next' ? swiper.realIndex : undefined
+          });
+        }
+        if (gridEnabled) {
+          const slideIndex = newIndex * swiper.params.grid.rows;
+          newIndex = swiper.slides.filter(slideEl => slideEl.getAttribute('data-swiper-slide-index') * 1 === slideIndex)[0].column;
+        } else {
+          newIndex = swiper.getSlideIndexByData(newIndex);
+        }
       }
     }
-    return swiper.slideTo(newIndex, speed, runCallbacks, internal);
+    requestAnimationFrame(() => {
+      swiper.slideTo(newIndex, speed, runCallbacks, internal);
+    });
+    return swiper;
   }
 
   /* eslint no-unused-vars: "off" */
@@ -1960,6 +2057,12 @@
       });
       // eslint-disable-next-line
       swiper._clientLeft = swiper.wrapperEl.clientLeft;
+      if (swiper.activeIndex === swiper.slides.length - 1 && params.cssMode) {
+        requestAnimationFrame(() => {
+          swiper.slideTo(swiper.activeIndex + increment, speed, runCallbacks, internal);
+        });
+        return true;
+      }
     }
     if (params.rewind && swiper.isEnd) {
       return swiper.slideTo(0, speed, runCallbacks, internal);
@@ -2026,6 +2129,11 @@
     if (params.rewind && swiper.isBeginning) {
       const lastIndex = swiper.params.virtual && swiper.params.virtual.enabled && swiper.virtual ? swiper.virtual.slides.length - 1 : swiper.slides.length - 1;
       return swiper.slideTo(lastIndex, speed, runCallbacks, internal);
+    } else if (params.loop && swiper.activeIndex === 0 && params.cssMode) {
+      requestAnimationFrame(() => {
+        swiper.slideTo(prevIndex, speed, runCallbacks, internal);
+      });
+      return true;
     }
     return swiper.slideTo(prevIndex, speed, runCallbacks, internal);
   }
@@ -2134,10 +2242,45 @@
       slidesEl
     } = swiper;
     if (!params.loop || swiper.virtual && swiper.params.virtual.enabled) return;
-    const slides = elementChildren(slidesEl, `.${params.slideClass}, swiper-slide`);
-    slides.forEach((el, index) => {
-      el.setAttribute('data-swiper-slide-index', index);
-    });
+    const initSlides = () => {
+      const slides = elementChildren(slidesEl, `.${params.slideClass}, swiper-slide`);
+      slides.forEach((el, index) => {
+        el.setAttribute('data-swiper-slide-index', index);
+      });
+    };
+    const gridEnabled = swiper.grid && params.grid && params.grid.rows > 1;
+    const slidesPerGroup = params.slidesPerGroup * (gridEnabled ? params.grid.rows : 1);
+    const shouldFillGroup = swiper.slides.length % slidesPerGroup !== 0;
+    const shouldFillGrid = gridEnabled && swiper.slides.length % params.grid.rows !== 0;
+    const addBlankSlides = amountOfSlides => {
+      for (let i = 0; i < amountOfSlides; i += 1) {
+        const slideEl = swiper.isElement ? createElement('swiper-slide', [params.slideBlankClass]) : createElement('div', [params.slideClass, params.slideBlankClass]);
+        swiper.slidesEl.append(slideEl);
+      }
+    };
+    if (shouldFillGroup) {
+      if (params.loopAddBlankSlides) {
+        const slidesToAdd = slidesPerGroup - swiper.slides.length % slidesPerGroup;
+        addBlankSlides(slidesToAdd);
+        swiper.recalcSlides();
+        swiper.updateSlides();
+      } else {
+        showWarning('Swiper Loop Warning: The number of slides is not even to slidesPerGroup, loop mode may not function properly. You need to add more slides (or make duplicates, or empty slides)');
+      }
+      initSlides();
+    } else if (shouldFillGrid) {
+      if (params.loopAddBlankSlides) {
+        const slidesToAdd = params.grid.rows - swiper.slides.length % params.grid.rows;
+        addBlankSlides(slidesToAdd);
+        swiper.recalcSlides();
+        swiper.updateSlides();
+      } else {
+        showWarning('Swiper Loop Warning: The number of slides is not even to grid.rows, loop mode may not function properly. You need to add more slides (or make duplicates, or empty slides)');
+      }
+      initSlides();
+    } else {
+      initSlides();
+    }
     swiper.loopFix({
       slideRealIndex,
       direction: params.centeredSlides ? undefined : 'next'
@@ -2164,6 +2307,9 @@
       slidesEl,
       params
     } = swiper;
+    const {
+      centeredSlides
+    } = params;
     swiper.allowSlidePrev = true;
     swiper.allowSlideNext = true;
     if (swiper.virtual && params.virtual.enabled) {
@@ -2181,17 +2327,33 @@
       swiper.emit('loopFix');
       return;
     }
-    const slidesPerView = params.slidesPerView === 'auto' ? swiper.slidesPerViewDynamic() : Math.ceil(parseFloat(params.slidesPerView, 10));
-    let loopedSlides = params.loopedSlides || slidesPerView;
-    if (loopedSlides % params.slidesPerGroup !== 0) {
-      loopedSlides += params.slidesPerGroup - loopedSlides % params.slidesPerGroup;
+    let slidesPerView = params.slidesPerView;
+    if (slidesPerView === 'auto') {
+      slidesPerView = swiper.slidesPerViewDynamic();
+    } else {
+      slidesPerView = Math.ceil(parseFloat(params.slidesPerView, 10));
+      if (centeredSlides && slidesPerView % 2 === 0) {
+        slidesPerView = slidesPerView + 1;
+      }
     }
+    const slidesPerGroup = params.slidesPerGroupAuto ? slidesPerView : params.slidesPerGroup;
+    let loopedSlides = slidesPerGroup;
+    if (loopedSlides % slidesPerGroup !== 0) {
+      loopedSlides += slidesPerGroup - loopedSlides % slidesPerGroup;
+    }
+    loopedSlides += params.loopAdditionalSlides;
     swiper.loopedSlides = loopedSlides;
+    const gridEnabled = swiper.grid && params.grid && params.grid.rows > 1;
+    if (slides.length < slidesPerView + loopedSlides) {
+      showWarning('Swiper Loop Warning: The number of slides is not enough for loop mode, it will be disabled and not function properly. You need to add more slides (or make duplicates) or lower the values of slidesPerView and slidesPerGroup parameters');
+    } else if (gridEnabled && params.grid.fill === 'row') {
+      showWarning('Swiper Loop Warning: Loop mode is not compatible with grid.fill = `row`');
+    }
     const prependSlidesIndexes = [];
     const appendSlidesIndexes = [];
     let activeIndex = swiper.activeIndex;
     if (typeof activeSlideIndex === 'undefined') {
-      activeSlideIndex = swiper.getSlideIndex(swiper.slides.filter(el => el.classList.contains(params.slideActiveClass))[0]);
+      activeSlideIndex = swiper.getSlideIndex(slides.filter(el => el.classList.contains(params.slideActiveClass))[0]);
     } else {
       activeIndex = activeSlideIndex;
     }
@@ -2199,37 +2361,64 @@
     const isPrev = direction === 'prev' || !direction;
     let slidesPrepended = 0;
     let slidesAppended = 0;
+    const cols = gridEnabled ? Math.ceil(slides.length / params.grid.rows) : slides.length;
+    const activeColIndex = gridEnabled ? slides[activeSlideIndex].column : activeSlideIndex;
+    const activeColIndexWithShift = activeColIndex + (centeredSlides && typeof setTranslate === 'undefined' ? -slidesPerView / 2 + 0.5 : 0);
     // prepend last slides before start
-    if (activeSlideIndex < loopedSlides) {
-      slidesPrepended = Math.max(loopedSlides - activeSlideIndex, params.slidesPerGroup);
-      for (let i = 0; i < loopedSlides - activeSlideIndex; i += 1) {
-        const index = i - Math.floor(i / slides.length) * slides.length;
-        prependSlidesIndexes.push(slides.length - index - 1);
+    if (activeColIndexWithShift < loopedSlides) {
+      slidesPrepended = Math.max(loopedSlides - activeColIndexWithShift, slidesPerGroup);
+      for (let i = 0; i < loopedSlides - activeColIndexWithShift; i += 1) {
+        const index = i - Math.floor(i / cols) * cols;
+        if (gridEnabled) {
+          const colIndexToPrepend = cols - index - 1;
+          for (let i = slides.length - 1; i >= 0; i -= 1) {
+            if (slides[i].column === colIndexToPrepend) prependSlidesIndexes.push(i);
+          }
+          // slides.forEach((slide, slideIndex) => {
+          //   if (slide.column === colIndexToPrepend) prependSlidesIndexes.push(slideIndex);
+          // });
+        } else {
+          prependSlidesIndexes.push(cols - index - 1);
+        }
       }
-    } else if (activeSlideIndex /* + slidesPerView */ > swiper.slides.length - loopedSlides * 2) {
-      slidesAppended = Math.max(activeSlideIndex - (swiper.slides.length - loopedSlides * 2), params.slidesPerGroup);
+    } else if (activeColIndexWithShift + slidesPerView > cols - loopedSlides) {
+      slidesAppended = Math.max(activeColIndexWithShift - (cols - loopedSlides * 2), slidesPerGroup);
       for (let i = 0; i < slidesAppended; i += 1) {
-        const index = i - Math.floor(i / slides.length) * slides.length;
-        appendSlidesIndexes.push(index);
+        const index = i - Math.floor(i / cols) * cols;
+        if (gridEnabled) {
+          slides.forEach((slide, slideIndex) => {
+            if (slide.column === index) appendSlidesIndexes.push(slideIndex);
+          });
+        } else {
+          appendSlidesIndexes.push(index);
+        }
       }
     }
+    swiper.__preventObserver__ = true;
+    requestAnimationFrame(() => {
+      swiper.__preventObserver__ = false;
+    });
     if (isPrev) {
       prependSlidesIndexes.forEach(index => {
-        swiper.slides[index].swiperLoopMoveDOM = true;
-        slidesEl.prepend(swiper.slides[index]);
-        swiper.slides[index].swiperLoopMoveDOM = false;
+        slides[index].swiperLoopMoveDOM = true;
+        slidesEl.prepend(slides[index]);
+        slides[index].swiperLoopMoveDOM = false;
       });
     }
     if (isNext) {
       appendSlidesIndexes.forEach(index => {
-        swiper.slides[index].swiperLoopMoveDOM = true;
-        slidesEl.append(swiper.slides[index]);
-        swiper.slides[index].swiperLoopMoveDOM = false;
+        slides[index].swiperLoopMoveDOM = true;
+        slidesEl.append(slides[index]);
+        slides[index].swiperLoopMoveDOM = false;
       });
     }
     swiper.recalcSlides();
     if (params.slidesPerView === 'auto') {
       swiper.updateSlides();
+    } else if (gridEnabled && (prependSlidesIndexes.length > 0 && isPrev || appendSlidesIndexes.length > 0 && isNext)) {
+      swiper.slides.forEach((slide, slideIndex) => {
+        swiper.grid.updateSlide(slideIndex, slide, swiper.slides);
+      });
     }
     if (params.watchSlidesProgress) {
       swiper.updateSlidesOffset();
@@ -2245,13 +2434,14 @@
           } else {
             swiper.slideTo(activeIndex + slidesPrepended, 0, false, true);
             if (setTranslate) {
-              swiper.touches[swiper.isHorizontal() ? 'startX' : 'startY'] += diff;
-              swiper.touchEventsData.currentTranslate = swiper.translate;
+              swiper.touchEventsData.startTranslate = swiper.touchEventsData.startTranslate - diff;
+              swiper.touchEventsData.currentTranslate = swiper.touchEventsData.currentTranslate - diff;
             }
           }
         } else {
           if (setTranslate) {
-            swiper.slideToLoop(slideRealIndex, 0, false, true);
+            const shift = gridEnabled ? prependSlidesIndexes.length / params.grid.rows : prependSlidesIndexes.length;
+            swiper.slideTo(swiper.activeIndex + shift, 0, false, true);
             swiper.touchEventsData.currentTranslate = swiper.translate;
           }
         }
@@ -2265,12 +2455,13 @@
           } else {
             swiper.slideTo(activeIndex - slidesAppended, 0, false, true);
             if (setTranslate) {
-              swiper.touches[swiper.isHorizontal() ? 'startX' : 'startY'] += diff;
-              swiper.touchEventsData.currentTranslate = swiper.translate;
+              swiper.touchEventsData.startTranslate = swiper.touchEventsData.startTranslate - diff;
+              swiper.touchEventsData.currentTranslate = swiper.touchEventsData.currentTranslate - diff;
             }
           }
         } else {
-          swiper.slideToLoop(slideRealIndex, 0, false, true);
+          const shift = gridEnabled ? appendSlidesIndexes.length / params.grid.rows : appendSlidesIndexes.length;
+          swiper.slideTo(swiper.activeIndex - shift, 0, false, true);
         }
       }
     }
@@ -2383,27 +2574,54 @@
     }
     return __closestFrom(base);
   }
+  function preventEdgeSwipe(swiper, event, startX) {
+    const window = getWindow();
+    const {
+      params
+    } = swiper;
+    const edgeSwipeDetection = params.edgeSwipeDetection;
+    const edgeSwipeThreshold = params.edgeSwipeThreshold;
+    if (edgeSwipeDetection && (startX <= edgeSwipeThreshold || startX >= window.innerWidth - edgeSwipeThreshold)) {
+      if (edgeSwipeDetection === 'prevent') {
+        event.preventDefault();
+        return true;
+      }
+      return false;
+    }
+    return true;
+  }
   function onTouchStart(event) {
     const swiper = this;
     const document = getDocument();
-    const window = getWindow();
+    let e = event;
+    if (e.originalEvent) e = e.originalEvent;
     const data = swiper.touchEventsData;
-    data.evCache.push(event);
+    if (e.type === 'pointerdown') {
+      if (data.pointerId !== null && data.pointerId !== e.pointerId) {
+        return;
+      }
+      data.pointerId = e.pointerId;
+    } else if (e.type === 'touchstart' && e.targetTouches.length === 1) {
+      data.touchId = e.targetTouches[0].identifier;
+    }
+    if (e.type === 'touchstart') {
+      // don't proceed touch event
+      preventEdgeSwipe(swiper, e, e.targetTouches[0].pageX);
+      return;
+    }
     const {
       params,
       touches,
       enabled
     } = swiper;
     if (!enabled) return;
-    if (!params.simulateTouch && event.pointerType === 'mouse') return;
+    if (!params.simulateTouch && e.pointerType === 'mouse') return;
     if (swiper.animating && params.preventInteractionOnTransition) {
       return;
     }
     if (!swiper.animating && params.cssMode && params.loop) {
       swiper.loopFix();
     }
-    let e = event;
-    if (e.originalEvent) e = e.originalEvent;
     let targetEl = e.target;
     if (params.touchEventsTarget === 'wrapper') {
       if (!swiper.wrapperEl.contains(targetEl)) return;
@@ -2415,7 +2633,7 @@
     // change target el for shadow root component
     const swipingClassHasValue = !!params.noSwipingClass && params.noSwipingClass !== '';
     // eslint-disable-next-line
-    const eventPath = event.composedPath ? event.composedPath() : event.path;
+    const eventPath = e.composedPath ? e.composedPath() : e.path;
     if (swipingClassHasValue && e.target && e.target.shadowRoot && eventPath) {
       targetEl = eventPath[0];
     }
@@ -2437,14 +2655,8 @@
 
     // Do NOT start if iOS edge swipe is detected. Otherwise iOS app cannot swipe-to-go-back anymore
 
-    const edgeSwipeDetection = params.edgeSwipeDetection || params.iOSEdgeSwipeDetection;
-    const edgeSwipeThreshold = params.edgeSwipeThreshold || params.iOSEdgeSwipeThreshold;
-    if (edgeSwipeDetection && (startX <= edgeSwipeThreshold || startX >= window.innerWidth - edgeSwipeThreshold)) {
-      if (edgeSwipeDetection === 'prevent') {
-        event.preventDefault();
-      } else {
-        return;
-      }
+    if (!preventEdgeSwipe(swiper, e, startX)) {
+      return;
     }
     Object.assign(data, {
       isTouched: true,
@@ -2494,15 +2706,24 @@
     if (!params.simulateTouch && event.pointerType === 'mouse') return;
     let e = event;
     if (e.originalEvent) e = e.originalEvent;
+    if (e.type === 'pointermove') {
+      if (data.touchId !== null) return; // return from pointer if we use touch
+      const id = e.pointerId;
+      if (id !== data.pointerId) return;
+    }
+    let targetTouch;
+    if (e.type === 'touchmove') {
+      targetTouch = [...e.changedTouches].filter(t => t.identifier === data.touchId)[0];
+      if (!targetTouch || targetTouch.identifier !== data.touchId) return;
+    } else {
+      targetTouch = e;
+    }
     if (!data.isTouched) {
       if (data.startMoving && data.isScrolling) {
         swiper.emit('touchMoveOpposite', e);
       }
       return;
     }
-    const pointerIndex = data.evCache.findIndex(cachedEv => cachedEv.pointerId === e.pointerId);
-    if (pointerIndex >= 0) data.evCache[pointerIndex] = e;
-    const targetTouch = data.evCache.length > 1 ? data.evCache[0] : e;
     const pageX = targetTouch.pageX;
     const pageY = targetTouch.pageY;
     if (e.preventedByNestedSwiper) {
@@ -2518,8 +2739,6 @@
         Object.assign(touches, {
           startX: pageX,
           startY: pageY,
-          prevX: swiper.touches.currentX,
-          prevY: swiper.touches.currentY,
           currentX: pageX,
           currentY: pageY
         });
@@ -2549,7 +2768,8 @@
     if (data.allowTouchCallbacks) {
       swiper.emit('touchMove', e);
     }
-    if (e.targetTouches && e.targetTouches.length > 1) return;
+    touches.previousX = touches.currentX;
+    touches.previousY = touches.currentY;
     touches.currentX = pageX;
     touches.currentY = pageY;
     const diffX = touches.currentX - touches.startX;
@@ -2575,7 +2795,7 @@
         data.startMoving = true;
       }
     }
-    if (data.isScrolling || swiper.zoom && swiper.params.zoom && swiper.params.zoom.enabled && data.evCache.length > 1) {
+    if (data.isScrolling) {
       data.isTouched = false;
       return;
     }
@@ -2605,8 +2825,9 @@
     swiper.swipeDirection = diff > 0 ? 'prev' : 'next';
     swiper.touchesDirection = touchesDiff > 0 ? 'prev' : 'next';
     const isLoop = swiper.params.loop && !params.cssMode;
+    const allowLoopFix = swiper.touchesDirection === 'next' && swiper.allowSlideNext || swiper.touchesDirection === 'prev' && swiper.allowSlidePrev;
     if (!data.isMoved) {
-      if (isLoop) {
+      if (isLoop && allowLoopFix) {
         swiper.loopFix({
           direction: swiper.swipeDirection
         });
@@ -2628,13 +2849,18 @@
       swiper.emit('sliderFirstMove', e);
     }
     let loopFixed;
-    if (data.isMoved && prevTouchesDirection !== swiper.touchesDirection && isLoop && Math.abs(diff) >= 1) {
-      // need another loop fix
-      swiper.loopFix({
-        direction: swiper.swipeDirection,
-        setTranslate: true
+    new Date().getTime();
+    if (data.isMoved && data.allowThresholdMove && prevTouchesDirection !== swiper.touchesDirection && isLoop && allowLoopFix && Math.abs(diff) >= 1) {
+      Object.assign(touches, {
+        startX: pageX,
+        startY: pageY,
+        currentX: pageX,
+        currentY: pageY,
+        startTranslate: data.currentTranslate
       });
-      loopFixed = true;
+      data.loopSwapReset = true;
+      data.startTranslate = data.currentTranslate;
+      return;
     }
     swiper.emit('sliderMove', e);
     data.isMoved = true;
@@ -2645,7 +2871,7 @@
       resistanceRatio = 0;
     }
     if (diff > 0) {
-      if (isLoop && !loopFixed && data.currentTranslate > (params.centeredSlides ? swiper.minTranslate() - swiper.size / 2 : swiper.minTranslate())) {
+      if (isLoop && allowLoopFix && !loopFixed && data.allowThresholdMove && data.currentTranslate > (params.centeredSlides ? swiper.minTranslate() - swiper.slidesSizesGrid[swiper.activeIndex + 1] : swiper.minTranslate())) {
         swiper.loopFix({
           direction: 'prev',
           setTranslate: true,
@@ -2659,7 +2885,7 @@
         }
       }
     } else if (diff < 0) {
-      if (isLoop && !loopFixed && data.currentTranslate < (params.centeredSlides ? swiper.maxTranslate() + swiper.size / 2 : swiper.maxTranslate())) {
+      if (isLoop && allowLoopFix && !loopFixed && data.allowThresholdMove && data.currentTranslate < (params.centeredSlides ? swiper.maxTranslate() + swiper.slidesSizesGrid[swiper.slidesSizesGrid.length - 1] : swiper.maxTranslate())) {
         swiper.loopFix({
           direction: 'next',
           setTranslate: true,
@@ -2723,16 +2949,26 @@
   function onTouchEnd(event) {
     const swiper = this;
     const data = swiper.touchEventsData;
-    const pointerIndex = data.evCache.findIndex(cachedEv => cachedEv.pointerId === event.pointerId);
-    if (pointerIndex >= 0) {
-      data.evCache.splice(pointerIndex, 1);
+    let e = event;
+    if (e.originalEvent) e = e.originalEvent;
+    let targetTouch;
+    const isTouchEvent = e.type === 'touchend' || e.type === 'touchcancel';
+    if (!isTouchEvent) {
+      if (data.touchId !== null) return; // return from pointer if we use touch
+      if (e.pointerId !== data.pointerId) return;
+      targetTouch = e;
+    } else {
+      targetTouch = [...e.changedTouches].filter(t => t.identifier === data.touchId)[0];
+      if (!targetTouch || targetTouch.identifier !== data.touchId) return;
     }
-    if (['pointercancel', 'pointerout', 'pointerleave', 'contextmenu'].includes(event.type)) {
-      const proceed = ['pointercancel', 'contextmenu'].includes(event.type) && (swiper.browser.isSafari || swiper.browser.isWebView);
+    if (['pointercancel', 'pointerout', 'pointerleave', 'contextmenu'].includes(e.type)) {
+      const proceed = ['pointercancel', 'contextmenu'].includes(e.type) && (swiper.browser.isSafari || swiper.browser.isWebView);
       if (!proceed) {
         return;
       }
     }
+    data.pointerId = null;
+    data.touchId = null;
     const {
       params,
       touches,
@@ -2741,9 +2977,7 @@
       enabled
     } = swiper;
     if (!enabled) return;
-    if (!params.simulateTouch && event.pointerType === 'mouse') return;
-    let e = event;
-    if (e.originalEvent) e = e.originalEvent;
+    if (!params.simulateTouch && e.pointerType === 'mouse') return;
     if (data.allowTouchCallbacks) {
       swiper.emit('touchEnd', e);
     }
@@ -2756,6 +2990,7 @@
       data.startMoving = false;
       return;
     }
+
     // Return Grab Cursor
     if (params.grabCursor && data.isMoved && data.isTouched && (swiper.allowSlideNext === true || swiper.allowSlidePrev === true)) {
       swiper.setGrabCursor(false);
@@ -2768,7 +3003,7 @@
     // Tap, doubleTap, Click
     if (swiper.allowClick) {
       const pathTree = e.path || e.composedPath && e.composedPath();
-      swiper.updateClickedSlide(pathTree && pathTree[0] || e.target);
+      swiper.updateClickedSlide(pathTree && pathTree[0] || e.target, pathTree);
       swiper.emit('tap click', e);
       if (timeDiff < 300 && touchEndTime - data.lastClickTime < 300) {
         swiper.emit('doubleTap doubleClick', e);
@@ -2778,7 +3013,7 @@
     nextTick(() => {
       if (!swiper.destroyed) swiper.allowClick = true;
     });
-    if (!data.isTouched || !data.isMoved || !swiper.swipeDirection || touches.diff === 0 || data.currentTranslate === data.startTranslate) {
+    if (!data.isTouched || !data.isMoved || !swiper.swipeDirection || touches.diff === 0 && !data.loopSwapReset || data.currentTranslate === data.startTranslate && !data.loopSwapReset) {
       data.isTouched = false;
       data.isMoved = false;
       data.startMoving = false;
@@ -2975,8 +3210,15 @@
     swiper.update();
   }
 
-  let dummyEventAttached = false;
-  function dummyEventListener() {}
+  function onDocumentTouchStart() {
+    const swiper = this;
+    if (swiper.documentTouchHandlerProceeded) return;
+    swiper.documentTouchHandlerProceeded = true;
+    if (swiper.params.touchReleaseOnEdges) {
+      swiper.el.style.touchAction = 'auto';
+    }
+  }
+
   const events = (swiper, method) => {
     const document = getDocument();
     const {
@@ -2990,17 +3232,34 @@
     const swiperMethod = method;
 
     // Touch Events
+    document[domMethod]('touchstart', swiper.onDocumentTouchStart, {
+      passive: false,
+      capture
+    });
+    el[domMethod]('touchstart', swiper.onTouchStart, {
+      passive: false
+    });
     el[domMethod]('pointerdown', swiper.onTouchStart, {
       passive: false
+    });
+    document[domMethod]('touchmove', swiper.onTouchMove, {
+      passive: false,
+      capture
     });
     document[domMethod]('pointermove', swiper.onTouchMove, {
       passive: false,
       capture
     });
+    document[domMethod]('touchend', swiper.onTouchEnd, {
+      passive: true
+    });
     document[domMethod]('pointerup', swiper.onTouchEnd, {
       passive: true
     });
     document[domMethod]('pointercancel', swiper.onTouchEnd, {
+      passive: true
+    });
+    document[domMethod]('touchcancel', swiper.onTouchEnd, {
       passive: true
     });
     document[domMethod]('pointerout', swiper.onTouchEnd, {
@@ -3035,22 +3294,18 @@
   };
   function attachEvents() {
     const swiper = this;
-    const document = getDocument();
     const {
       params
     } = swiper;
     swiper.onTouchStart = onTouchStart.bind(swiper);
     swiper.onTouchMove = onTouchMove.bind(swiper);
     swiper.onTouchEnd = onTouchEnd.bind(swiper);
+    swiper.onDocumentTouchStart = onDocumentTouchStart.bind(swiper);
     if (params.cssMode) {
       swiper.onScroll = onScroll.bind(swiper);
     }
     swiper.onClick = onClick.bind(swiper);
     swiper.onLoad = onLoad.bind(swiper);
-    if (!dummyEventAttached) {
-      document.addEventListener('touchstart', dummyEventListener);
-      dummyEventAttached = true;
-    }
     events(swiper, 'on');
   }
   function detachEvents() {
@@ -3109,11 +3364,13 @@
     });
     const directionChanged = breakpointParams.direction && breakpointParams.direction !== params.direction;
     const needsReLoop = params.loop && (breakpointParams.slidesPerView !== params.slidesPerView || directionChanged);
+    const wasLoop = params.loop;
     if (directionChanged && initialized) {
       swiper.changeDirection();
     }
     extend$1(swiper.params, breakpointParams);
     const isEnabled = swiper.params.enabled;
+    const hasLoop = swiper.params.loop;
     Object.assign(swiper, {
       allowTouchMove: swiper.params.allowTouchMove,
       allowSlideNext: swiper.params.allowSlideNext,
@@ -3126,10 +3383,17 @@
     }
     swiper.currentBreakpoint = breakpoint;
     swiper.emit('_beforeBreakpoint', breakpointParams);
-    if (needsReLoop && initialized) {
-      swiper.loopDestroy();
-      swiper.loopCreate(realIndex);
-      swiper.updateSlides();
+    if (initialized) {
+      if (needsReLoop) {
+        swiper.loopDestroy();
+        swiper.loopCreate(realIndex);
+        swiper.updateSlides();
+      } else if (!wasLoop && hasLoop) {
+        swiper.loopCreate(realIndex);
+        swiper.updateSlides();
+      } else if (wasLoop && !hasLoop) {
+        swiper.loopDestroy();
+      }
     }
     swiper.emit('breakpoint', breakpointParams);
   }
@@ -3289,6 +3553,7 @@
     resizeObserver: true,
     nested: false,
     createElements: false,
+    eventsPrefix: 'swiper',
     enabled: true,
     focusableElements: 'input, select, option, textarea, button, video, label',
     // Overrides
@@ -3363,7 +3628,8 @@
     slideToClickedSlide: false,
     // loop
     loop: false,
-    loopedSlides: null,
+    loopAddBlankSlides: true,
+    loopAdditionalSlides: 0,
     loopPreventsSliding: true,
     // rewind
     rewind: false,
@@ -3382,8 +3648,10 @@
     containerModifierClass: 'swiper-',
     // NEW
     slideClass: 'swiper-slide',
+    slideBlankClass: 'swiper-slide-blank',
     slideActiveClass: 'swiper-slide-active',
     slideVisibleClass: 'swiper-slide-visible',
+    slideFullyVisibleClass: 'swiper-slide-fully-visible',
     slideNextClass: 'swiper-slide-next',
     slidePrevClass: 'swiper-slide-prev',
     wrapperClass: 'swiper-wrapper',
@@ -3406,19 +3674,20 @@
         extend$1(allModulesParams, obj);
         return;
       }
-      if (['navigation', 'pagination', 'scrollbar'].indexOf(moduleParamName) >= 0 && params[moduleParamName] === true) {
-        params[moduleParamName] = {
-          auto: true
-        };
-      }
-      if (!(moduleParamName in params && 'enabled' in moduleParams)) {
-        extend$1(allModulesParams, obj);
-        return;
-      }
       if (params[moduleParamName] === true) {
         params[moduleParamName] = {
           enabled: true
         };
+      }
+      if (moduleParamName === 'navigation' && params[moduleParamName] && params[moduleParamName].enabled && !params[moduleParamName].prevEl && !params[moduleParamName].nextEl) {
+        params[moduleParamName].auto = true;
+      }
+      if (['pagination', 'scrollbar'].indexOf(moduleParamName) >= 0 && params[moduleParamName] && params[moduleParamName].enabled && !params[moduleParamName].el) {
+        params[moduleParamName].auto = true;
+      }
+      if (!(moduleParamName in params && 'enabled' in moduleParams)) {
+        extend$1(allModulesParams, obj);
+        return;
       }
       if (typeof params[moduleParamName] === 'object' && !('enabled' in params[moduleParamName])) {
         params[moduleParamName].enabled = true;
@@ -3575,7 +3844,8 @@
           velocities: [],
           allowMomentumBounce: undefined,
           startMoving: undefined,
-          evCache: []
+          pointerId: null,
+          touchId: null
         },
         // Clicks
         allowClick: true,
@@ -3602,6 +3872,22 @@
       // Return app instance
       // eslint-disable-next-line no-constructor-return
       return swiper;
+    }
+    getDirectionLabel(property) {
+      if (this.isHorizontal()) {
+        return property;
+      }
+      // prettier-ignore
+      return {
+        'width': 'height',
+        'margin-top': 'margin-left',
+        'margin-bottom ': 'margin-right',
+        'margin-left': 'margin-top',
+        'margin-right': 'margin-bottom',
+        'padding-left': 'padding-top',
+        'padding-right': 'padding-bottom',
+        'marginRight': 'marginBottom'
+      }[property];
     }
     getSlideIndex(slideEl) {
       const {
@@ -3697,6 +3983,7 @@
         activeIndex
       } = swiper;
       let spv = 1;
+      if (typeof params.slidesPerView === 'number') return params.slidesPerView;
       if (params.centeredSlides) {
         let slideSize = slides[activeIndex] ? slides[activeIndex].swiperSlideSize : 0;
         let breakLoop;
@@ -3979,7 +4266,7 @@
         wrapperEl.removeAttribute('style');
         if (slides && slides.length) {
           slides.forEach(slideEl => {
-            slideEl.classList.remove(params.slideVisibleClass, params.slideActiveClass, params.slideNextClass, params.slidePrevClass);
+            slideEl.classList.remove(params.slideVisibleClass, params.slideFullyVisibleClass, params.slideActiveClass, params.slideNextClass, params.slidePrevClass);
             slideEl.removeAttribute('style');
             slideEl.removeAttribute('data-swiper-slide-index');
           });
@@ -4082,7 +4369,9 @@
       if (!params.renderSlide) {
         slideEl.innerHTML = slide;
       }
-      if (params.cache) swiper.virtual.cache[index] = slideEl;
+      if (params.cache) {
+        swiper.virtual.cache[index] = slideEl;
+      }
       return slideEl;
     }
     function update(force) {
@@ -4189,14 +4478,14 @@
         return slideIndex;
       };
       if (force) {
-        swiper.slidesEl.querySelectorAll(`.${swiper.params.slideClass}, swiper-slide`).forEach(slideEl => {
+        swiper.slides.filter(el => el.matches(`.${swiper.params.slideClass}, swiper-slide`)).forEach(slideEl => {
           slideEl.remove();
         });
       } else {
         for (let i = previousFrom; i <= previousTo; i += 1) {
           if (i < from || i > to) {
             const slideIndex = getSlideIndex(i);
-            swiper.slidesEl.querySelectorAll(`.${swiper.params.slideClass}[data-swiper-slide-index="${slideIndex}"], swiper-slide[data-swiper-slide-index="${slideIndex}"]`).forEach(slideEl => {
+            swiper.slides.filter(el => el.matches(`.${swiper.params.slideClass}[data-swiper-slide-index="${slideIndex}"], swiper-slide[data-swiper-slide-index="${slideIndex}"]`)).forEach(slideEl => {
               slideEl.remove();
             });
           }
@@ -4278,18 +4567,34 @@
       let activeIndex = swiper.activeIndex;
       if (Array.isArray(slidesIndexes)) {
         for (let i = slidesIndexes.length - 1; i >= 0; i -= 1) {
-          swiper.virtual.slides.splice(slidesIndexes[i], 1);
           if (swiper.params.virtual.cache) {
             delete swiper.virtual.cache[slidesIndexes[i]];
+            // shift cache indexes
+            Object.keys(swiper.virtual.cache).forEach(key => {
+              if (key > slidesIndexes) {
+                swiper.virtual.cache[key - 1] = swiper.virtual.cache[key];
+                swiper.virtual.cache[key - 1].setAttribute('data-swiper-slide-index', key - 1);
+                delete swiper.virtual.cache[key];
+              }
+            });
           }
+          swiper.virtual.slides.splice(slidesIndexes[i], 1);
           if (slidesIndexes[i] < activeIndex) activeIndex -= 1;
           activeIndex = Math.max(activeIndex, 0);
         }
       } else {
-        swiper.virtual.slides.splice(slidesIndexes, 1);
         if (swiper.params.virtual.cache) {
           delete swiper.virtual.cache[slidesIndexes];
+          // shift cache indexes
+          Object.keys(swiper.virtual.cache).forEach(key => {
+            if (key > slidesIndexes) {
+              swiper.virtual.cache[key - 1] = swiper.virtual.cache[key];
+              swiper.virtual.cache[key - 1].setAttribute('data-swiper-slide-index', key - 1);
+              delete swiper.virtual.cache[key];
+            }
+          });
         }
+        swiper.virtual.slides.splice(slidesIndexes, 1);
         if (slidesIndexes < activeIndex) activeIndex -= 1;
         activeIndex = Math.max(activeIndex, 0);
       }
@@ -4325,9 +4630,7 @@
       swiper.classNames.push(`${swiper.params.containerModifierClass}virtual`);
       swiper.params.watchSlidesProgress = true;
       swiper.originalParams.watchSlidesProgress = true;
-      if (!swiper.params.initialSlide) {
-        update();
-      }
+      update();
     });
     on('setTranslate', () => {
       if (!swiper.params.virtual.enabled) return;
@@ -5015,7 +5318,11 @@
       } = swiper.navigation;
       nextEl = makeElementsArray(nextEl);
       prevEl = makeElementsArray(prevEl);
-      [...nextEl, ...prevEl].filter(el => !!el).forEach(el => el.classList[swiper.enabled ? 'remove' : 'add'](swiper.params.navigation.lockClass));
+      if (swiper.enabled) {
+        update();
+        return;
+      }
+      [...nextEl, ...prevEl].filter(el => !!el).forEach(el => el.classList.add(swiper.params.navigation.lockClass));
     });
     on('click', (_s, e) => {
       let {
@@ -5140,21 +5447,6 @@
       const index = elementIndex(bulletEl) * swiper.params.slidesPerGroup;
       if (swiper.params.loop) {
         if (swiper.realIndex === index) return;
-        const realIndex = swiper.realIndex;
-        const newSlideIndex = swiper.getSlideIndexByData(index);
-        const currentSlideIndex = swiper.getSlideIndexByData(swiper.realIndex);
-        if (newSlideIndex > swiper.slides.length - swiper.loopedSlides) {
-          const indexBeforeLoopFix = swiper.activeIndex;
-          swiper.loopFix({
-            direction: newSlideIndex > currentSlideIndex ? 'next' : 'prev',
-            activeSlideIndex: newSlideIndex,
-            slideTo: false
-          });
-          const indexAfterFix = swiper.activeIndex;
-          if (indexBeforeLoopFix === indexAfterFix) {
-            swiper.slideToLoop(realIndex, 0, false, true);
-          }
-        }
         swiper.slideToLoop(index);
       } else {
         swiper.slideTo(index);
@@ -5305,7 +5597,7 @@
       // Render Container
       const params = swiper.params.pagination;
       if (isPaginationDisabled()) return;
-      const slidesLength = swiper.virtual && swiper.params.virtual.enabled ? swiper.virtual.slides.length : swiper.slides.length;
+      const slidesLength = swiper.virtual && swiper.params.virtual.enabled ? swiper.virtual.slides.length : swiper.grid && swiper.params.grid.rows > 1 ? swiper.slides.length / Math.ceil(swiper.params.grid.rows) : swiper.slides.length;
       let el = swiper.pagination.el;
       el = makeElementsArray(el);
       let paginationHTML = '';
@@ -5777,6 +6069,7 @@
       }
       if (!el && typeof params.el === 'string') {
         el = document.querySelectorAll(params.el);
+        if (!el.length) return;
       } else if (!el) {
         el = params.el;
       }
@@ -5787,7 +6080,7 @@
       el.classList.add(swiper.isHorizontal() ? params.horizontalClass : params.verticalClass);
       let dragEl;
       if (el) {
-        dragEl = el.querySelector(`.${swiper.params.scrollbar.dragClass}`);
+        dragEl = el.querySelector(classesToSelector(swiper.params.scrollbar.dragClass));
         if (!dragEl) {
           dragEl = createElement('div', swiper.params.scrollbar.dragClass);
           el.append(dragEl);
@@ -5801,14 +6094,14 @@
         enableDraggable();
       }
       if (el) {
-        el.classList[swiper.enabled ? 'remove' : 'add'](swiper.params.scrollbar.lockClass);
+        el.classList[swiper.enabled ? 'remove' : 'add'](...classesToTokens(swiper.params.scrollbar.lockClass));
       }
     }
     function destroy() {
       const params = swiper.params.scrollbar;
       const el = swiper.scrollbar.el;
       if (el) {
-        el.classList.remove(swiper.isHorizontal() ? params.horizontalClass : params.verticalClass);
+        el.classList.remove(...classesToTokens(swiper.isHorizontal() ? params.horizontalClass : params.verticalClass));
       }
       disableDraggable();
     }
@@ -5836,25 +6129,25 @@
         el
       } = swiper.scrollbar;
       if (el) {
-        el.classList[swiper.enabled ? 'remove' : 'add'](swiper.params.scrollbar.lockClass);
+        el.classList[swiper.enabled ? 'remove' : 'add'](...classesToTokens(swiper.params.scrollbar.lockClass));
       }
     });
     on('destroy', () => {
       destroy();
     });
     const enable = () => {
-      swiper.el.classList.remove(swiper.params.scrollbar.scrollbarDisabledClass);
+      swiper.el.classList.remove(...classesToTokens(swiper.params.scrollbar.scrollbarDisabledClass));
       if (swiper.scrollbar.el) {
-        swiper.scrollbar.el.classList.remove(swiper.params.scrollbar.scrollbarDisabledClass);
+        swiper.scrollbar.el.classList.remove(...classesToTokens(swiper.params.scrollbar.scrollbarDisabledClass));
       }
       init();
       updateSize();
       setTranslate();
     };
     const disable = () => {
-      swiper.el.classList.add(swiper.params.scrollbar.scrollbarDisabledClass);
+      swiper.el.classList.add(...classesToTokens(swiper.params.scrollbar.scrollbarDisabledClass));
       if (swiper.scrollbar.el) {
-        swiper.scrollbar.el.classList.add(swiper.params.scrollbar.scrollbarDisabledClass);
+        swiper.scrollbar.el.classList.add(...classesToTokens(swiper.params.scrollbar.scrollbarDisabledClass));
       }
       destroy();
     };
@@ -6077,7 +6370,7 @@
         y: null
       };
       const box = gesture.imageEl.getBoundingClientRect();
-      return [(evCache[0].pageX + (evCache[1].pageX - evCache[0].pageX) / 2 - box.x) / currentScale, (evCache[0].pageY + (evCache[1].pageY - evCache[0].pageY) / 2 - box.y) / currentScale];
+      return [(evCache[0].pageX + (evCache[1].pageX - evCache[0].pageX) / 2 - box.x - window.scrollX) / currentScale, (evCache[0].pageY + (evCache[1].pageY - evCache[0].pageY) / 2 - box.y - window.scrollY) / currentScale];
     }
     function getSlideSelector() {
       return swiper.isElement ? `swiper-slide` : `.${swiper.params.slideClass}`;
@@ -7347,7 +7640,7 @@
         enabled: false,
         delay: 3000,
         waitForTransition: true,
-        disableOnInteraction: true,
+        disableOnInteraction: false,
         stopOnLastSlide: false,
         reverseDirection: false,
         pauseOnMouseEnter: false
@@ -7358,17 +7651,21 @@
     let autoplayDelayTotal = params && params.autoplay ? params.autoplay.delay : 3000;
     let autoplayDelayCurrent = params && params.autoplay ? params.autoplay.delay : 3000;
     let autoplayTimeLeft;
-    let autoplayStartTime = new Date().getTime;
+    let autoplayStartTime = new Date().getTime();
     let wasPaused;
     let isTouched;
     let pausedByTouch;
     let touchStartTimeout;
     let slideChanged;
     let pausedByInteraction;
+    let pausedByPointerEnter;
     function onTransitionEnd(e) {
       if (!swiper || swiper.destroyed || !swiper.wrapperEl) return;
       if (e.target !== swiper.wrapperEl) return;
       swiper.wrapperEl.removeEventListener('transitionend', onTransitionEnd);
+      if (pausedByPointerEnter) {
+        return;
+      }
       resume();
     }
     const calcTimeLeft = () => {
@@ -7453,6 +7750,7 @@
       return delay;
     };
     const start = () => {
+      autoplayStartTime = new Date().getTime();
       swiper.autoplay.running = true;
       run();
       emit('autoplayStart');
@@ -7518,11 +7816,13 @@
     const onPointerEnter = e => {
       if (e.pointerType !== 'mouse') return;
       pausedByInteraction = true;
+      pausedByPointerEnter = true;
       if (swiper.animating || swiper.autoplay.paused) return;
       pause(true);
     };
     const onPointerLeave = e => {
       if (e.pointerType !== 'mouse') return;
+      pausedByPointerEnter = false;
       if (swiper.autoplay.paused) {
         resume();
       }
@@ -7549,7 +7849,6 @@
       if (swiper.params.autoplay.enabled) {
         attachMouseEvents();
         attachDocumentEvents();
-        autoplayStartTime = new Date().getTime();
         start();
       }
     });
@@ -7557,6 +7856,18 @@
       detachMouseEvents();
       detachDocumentEvents();
       if (swiper.autoplay.running) {
+        stop();
+      }
+    });
+    on('_freeModeStaticRelease', () => {
+      if (pausedByTouch || pausedByInteraction) {
+        resume();
+      }
+    });
+    on('_freeModeNoMomentumRelease', () => {
+      if (!swiper.params.autoplay.disableOnInteraction) {
+        pause(true, true);
+      } else {
         stop();
       }
     });
@@ -8015,6 +8326,7 @@
         emit('_freeModeNoMomentumRelease');
       }
       if (!params.freeMode.momentum || timeDiff >= params.longSwipesMs) {
+        emit('_freeModeStaticRelease');
         swiper.updateProgress();
         swiper.updateActiveIndex();
         swiper.updateSlidesClasses();
@@ -8032,7 +8344,8 @@
   function Grid(_ref) {
     let {
       swiper,
-      extendParams
+      extendParams,
+      on
     } = _ref;
     extendParams({
       grid: {
@@ -8043,6 +8356,7 @@
     let slidesNumberEvenToRows;
     let slidesPerRow;
     let numFullColumns;
+    let wasMultiRow;
     const getSpaceBetween = () => {
       let spaceBetween = swiper.params.spaceBetween;
       if (typeof spaceBetween === 'string' && spaceBetween.indexOf('%') >= 0) {
@@ -8052,7 +8366,7 @@
       }
       return spaceBetween;
     };
-    const initSlides = slidesLength => {
+    const initSlides = slides => {
       const {
         slidesPerView
       } = swiper.params;
@@ -8060,6 +8374,7 @@
         rows,
         fill
       } = swiper.params.grid;
+      const slidesLength = swiper.virtual && swiper.params.virtual.enabled ? swiper.virtual.slides.length : slides.length;
       numFullColumns = Math.floor(slidesLength / rows);
       if (Math.floor(slidesLength / rows) === slidesLength / rows) {
         slidesNumberEvenToRows = slidesLength;
@@ -8071,7 +8386,17 @@
       }
       slidesPerRow = slidesNumberEvenToRows / rows;
     };
-    const updateSlide = (i, slide, slidesLength, getDirectionLabel) => {
+    const unsetSlides = () => {
+      if (swiper.slides) {
+        swiper.slides.forEach(slide => {
+          if (slide.swiperSlideGridSet) {
+            slide.style.height = '';
+            slide.style[swiper.getDirectionLabel('margin-top')] = '';
+          }
+        });
+      }
+    };
+    const updateSlide = (i, slide, slides) => {
       const {
         slidesPerGroup
       } = swiper.params;
@@ -8080,6 +8405,7 @@
         rows,
         fill
       } = swiper.params.grid;
+      const slidesLength = swiper.virtual && swiper.params.virtual.enabled ? swiper.virtual.slides.length : slides.length;
       // Set slides order
       let newSlideOrderIndex;
       let column;
@@ -8108,9 +8434,11 @@
       }
       slide.row = row;
       slide.column = column;
-      slide.style[getDirectionLabel('margin-top')] = row !== 0 ? spaceBetween && `${spaceBetween}px` : '';
+      slide.style.height = `calc((100% - ${(rows - 1) * spaceBetween}px) / ${rows})`;
+      slide.style[swiper.getDirectionLabel('margin-top')] = row !== 0 ? spaceBetween && `${spaceBetween}px` : '';
+      slide.swiperSlideGridSet = true;
     };
-    const updateWrapperSize = (slideSize, snapGrid, getDirectionLabel) => {
+    const updateWrapperSize = (slideSize, snapGrid) => {
       const {
         centeredSlides,
         roundLengths
@@ -8121,7 +8449,9 @@
       } = swiper.params.grid;
       swiper.virtualSize = (slideSize + spaceBetween) * slidesNumberEvenToRows;
       swiper.virtualSize = Math.ceil(swiper.virtualSize / rows) - spaceBetween;
-      swiper.wrapperEl.style[getDirectionLabel('width')] = `${swiper.virtualSize + spaceBetween}px`;
+      if (!swiper.params.cssMode) {
+        swiper.wrapperEl.style[swiper.getDirectionLabel('width')] = `${swiper.virtualSize + spaceBetween}px`;
+      }
       if (centeredSlides) {
         const newSlidesGrid = [];
         for (let i = 0; i < snapGrid.length; i += 1) {
@@ -8133,8 +8463,33 @@
         snapGrid.push(...newSlidesGrid);
       }
     };
+    const onInit = () => {
+      wasMultiRow = swiper.params.grid && swiper.params.grid.rows > 1;
+    };
+    const onUpdate = () => {
+      const {
+        params,
+        el
+      } = swiper;
+      const isMultiRow = params.grid && params.grid.rows > 1;
+      if (wasMultiRow && !isMultiRow) {
+        el.classList.remove(`${params.containerModifierClass}grid`, `${params.containerModifierClass}grid-column`);
+        numFullColumns = 1;
+        swiper.emitContainerClasses();
+      } else if (!wasMultiRow && isMultiRow) {
+        el.classList.add(`${params.containerModifierClass}grid`);
+        if (params.grid.fill === 'column') {
+          el.classList.add(`${params.containerModifierClass}grid-column`);
+        }
+        swiper.emitContainerClasses();
+      }
+      wasMultiRow = isMultiRow;
+    };
+    on('init', onInit);
+    on('update', onUpdate);
     swiper.grid = {
       initSlides,
+      unsetSlides,
       updateSlide,
       updateWrapperSize
     };
@@ -9137,7 +9492,7 @@
   }
 
   /**
-   * Swiper 10.2.0
+   * Swiper 11.0.3
    * Most modern mobile touch slider and framework with hardware accelerated transitions
    * https://swiperjs.com
    *
@@ -9145,7 +9500,7 @@
    *
    * Released under the MIT License
    *
-   * Released on: August 17, 2023
+   * Released on: October 26, 2023
    */
 
 
@@ -9154,12 +9509,12 @@
   Swiper.use(modules);
 
   /* underscore in name -> watch for changes */
-  const paramsList = ['eventsPrefix', 'injectStyles', 'injectStylesUrls', 'modules', 'init', '_direction', 'oneWayMovement', 'touchEventsTarget', 'initialSlide', '_speed', 'cssMode', 'updateOnWindowResize', 'resizeObserver', 'nested', 'focusableElements', '_enabled', '_width', '_height', 'preventInteractionOnTransition', 'userAgent', 'url', '_edgeSwipeDetection', '_edgeSwipeThreshold', '_freeMode', '_autoHeight', 'setWrapperSize', 'virtualTranslate', '_effect', 'breakpoints', '_spaceBetween', '_slidesPerView', 'maxBackfaceHiddenSlides', '_grid', '_slidesPerGroup', '_slidesPerGroupSkip', '_slidesPerGroupAuto', '_centeredSlides', '_centeredSlidesBounds', '_slidesOffsetBefore', '_slidesOffsetAfter', 'normalizeSlideIndex', '_centerInsufficientSlides', '_watchOverflow', 'roundLengths', 'touchRatio', 'touchAngle', 'simulateTouch', '_shortSwipes', '_longSwipes', 'longSwipesRatio', 'longSwipesMs', '_followFinger', 'allowTouchMove', '_threshold', 'touchMoveStopPropagation', 'touchStartPreventDefault', 'touchStartForcePreventDefault', 'touchReleaseOnEdges', 'uniqueNavElements', '_resistance', '_resistanceRatio', '_watchSlidesProgress', '_grabCursor', 'preventClicks', 'preventClicksPropagation', '_slideToClickedSlide', '_loop', 'loopedSlides', 'loopPreventsSliding', '_rewind', '_allowSlidePrev', '_allowSlideNext', '_swipeHandler', '_noSwiping', 'noSwipingClass', 'noSwipingSelector', 'passiveListeners', 'containerModifierClass', 'slideClass', 'slideActiveClass', 'slideVisibleClass', 'slideNextClass', 'slidePrevClass', 'wrapperClass', 'lazyPreloaderClass', 'lazyPreloadPrevNext', 'runCallbacksOnInit', 'observer', 'observeParents', 'observeSlideChildren',
+  const paramsList = ['eventsPrefix', 'injectStyles', 'injectStylesUrls', 'modules', 'init', '_direction', 'oneWayMovement', 'touchEventsTarget', 'initialSlide', '_speed', 'cssMode', 'updateOnWindowResize', 'resizeObserver', 'nested', 'focusableElements', '_enabled', '_width', '_height', 'preventInteractionOnTransition', 'userAgent', 'url', '_edgeSwipeDetection', '_edgeSwipeThreshold', '_freeMode', '_autoHeight', 'setWrapperSize', 'virtualTranslate', '_effect', 'breakpoints', 'breakpointsBase', '_spaceBetween', '_slidesPerView', 'maxBackfaceHiddenSlides', '_grid', '_slidesPerGroup', '_slidesPerGroupSkip', '_slidesPerGroupAuto', '_centeredSlides', '_centeredSlidesBounds', '_slidesOffsetBefore', '_slidesOffsetAfter', 'normalizeSlideIndex', '_centerInsufficientSlides', '_watchOverflow', 'roundLengths', 'touchRatio', 'touchAngle', 'simulateTouch', '_shortSwipes', '_longSwipes', 'longSwipesRatio', 'longSwipesMs', '_followFinger', 'allowTouchMove', '_threshold', 'touchMoveStopPropagation', 'touchStartPreventDefault', 'touchStartForcePreventDefault', 'touchReleaseOnEdges', 'uniqueNavElements', '_resistance', '_resistanceRatio', '_watchSlidesProgress', '_grabCursor', 'preventClicks', 'preventClicksPropagation', '_slideToClickedSlide', '_loop', 'loopAdditionalSlides', 'loopAddBlankSlides', 'loopPreventsSliding', '_rewind', '_allowSlidePrev', '_allowSlideNext', '_swipeHandler', '_noSwiping', 'noSwipingClass', 'noSwipingSelector', 'passiveListeners', 'containerModifierClass', 'slideClass', 'slideActiveClass', 'slideVisibleClass', 'slideFullyVisibleClass', 'slideNextClass', 'slidePrevClass', 'slideBlankClass', 'wrapperClass', 'lazyPreloaderClass', 'lazyPreloadPrevNext', 'runCallbacksOnInit', 'observer', 'observeParents', 'observeSlideChildren',
   // modules
   'a11y', '_autoplay', '_controller', 'coverflowEffect', 'cubeEffect', 'fadeEffect', 'flipEffect', 'creativeEffect', 'cardsEffect', 'hashNavigation', 'history', 'keyboard', 'mousewheel', '_navigation', '_pagination', 'parallax', '_scrollbar', '_thumbs', 'virtual', 'zoom', 'control'];
 
   function isObject(o) {
-    return typeof o === 'object' && o !== null && o.constructor && Object.prototype.toString.call(o).slice(8, -1) === 'Object';
+    return typeof o === 'object' && o !== null && o.constructor && Object.prototype.toString.call(o).slice(8, -1) === 'Object' && !o.__swiper__;
   }
   function extend(target, src) {
     const noExtend = ['__proto__', 'constructor', 'prototype'];
@@ -9270,7 +9625,7 @@
     }
     updateParams.forEach(key => {
       if (isObject(currentParams[key]) && isObject(passedParams[key])) {
-        extend(currentParams[key], passedParams[key]);
+        Object.assign(currentParams[key], passedParams[key]);
         if ((key === 'navigation' || key === 'pagination' || key === 'scrollbar') && 'enabled' in passedParams[key] && !passedParams[key].enabled) {
           destroyModule(key);
         }
@@ -9290,6 +9645,9 @@
     }
     if (changedParams.includes('children') && slides && virtual && currentParams.virtual.enabled) {
       virtual.slides = slides;
+      virtual.update(true);
+    } else if (changedParams.includes('virtual') && virtual && currentParams.virtual.enabled) {
+      if (slides) virtual.slides = slides;
       virtual.update(true);
     }
     if (changedParams.includes('children') && slides && currentParams.loop) {
@@ -9405,7 +9763,9 @@
     if (typeof propName === 'string' && typeof propValue !== 'undefined') {
       attrsList.push({
         name: propName,
-        value: propValue
+        value: isObject(propValue) ? {
+          ...propValue
+        } : propValue
       });
     }
     attrsList.forEach(attr => {
@@ -9424,11 +9784,11 @@
         const name = attrToProp(attr.name);
         if (!allowedParams.includes(name)) return;
         const value = formatValue(attr.value);
-        if (passedParams[name] && modulesParamsList.includes(attr.name)) {
+        if (passedParams[name] && modulesParamsList.includes(attr.name) && !isObject(value)) {
           if (passedParams[name].constructor !== Object) {
             passedParams[name] = {};
           }
-          passedParams[name].enabled = value;
+          passedParams[name].enabled = !!value;
         } else {
           passedParams[name] = value;
         }
@@ -9467,7 +9827,7 @@
   }
 
   /**
-   * Swiper Custom Element 10.2.0
+   * Swiper Custom Element 11.0.3
    * Most modern mobile touch slider and framework with hardware accelerated transitions
    * https://swiperjs.com
    *
@@ -9475,13 +9835,13 @@
    *
    * Released under the MIT License
    *
-   * Released on: August 17, 2023
+   * Released on: October 26, 2023
    */
 
 
   /* eslint-disable spaced-comment */
 
-  const SwiperCSS = `:host{--swiper-theme-color:#007aff}:host{position:relative;display:block;margin-left:auto;margin-right:auto;z-index:1}.swiper{width:100%;height:100%;margin-left:auto;margin-right:auto;position:relative;overflow:hidden;overflow:clip;list-style:none;padding:0;z-index:1;display:block}.swiper-vertical>.swiper-wrapper{flex-direction:column}.swiper-wrapper{position:relative;width:100%;height:100%;z-index:1;display:flex;transition-property:transform;transition-timing-function:var(--swiper-wrapper-transition-timing-function,initial);box-sizing:content-box}.swiper-android ::slotted(swiper-slide),.swiper-ios ::slotted(swiper-slide),.swiper-wrapper{transform:translate3d(0px,0,0)}.swiper-horizontal{touch-action:pan-y}.swiper-vertical{touch-action:pan-x}::slotted(swiper-slide){flex-shrink:0;width:100%;height:100%;position:relative;transition-property:transform;display:block}::slotted(.swiper-slide-invisible-blank){visibility:hidden}.swiper-autoheight,.swiper-autoheight ::slotted(swiper-slide){height:auto}.swiper-autoheight .swiper-wrapper{align-items:flex-start;transition-property:transform,height}.swiper-backface-hidden ::slotted(swiper-slide){transform:translateZ(0);-webkit-backface-visibility:hidden;backface-visibility:hidden}.swiper-3d.swiper-css-mode .swiper-wrapper{perspective:1200px}.swiper-3d .swiper-wrapper{transform-style:preserve-3d}.swiper-3d{perspective:1200px}.swiper-3d .swiper-cube-shadow,.swiper-3d ::slotted(swiper-slide){transform-style:preserve-3d}.swiper-css-mode>.swiper-wrapper{overflow:auto;scrollbar-width:none;-ms-overflow-style:none}.swiper-css-mode>.swiper-wrapper::-webkit-scrollbar{display:none}.swiper-css-mode ::slotted(swiper-slide){scroll-snap-align:start start}.swiper-css-mode.swiper-horizontal>.swiper-wrapper{scroll-snap-type:x mandatory}.swiper-css-mode.swiper-vertical>.swiper-wrapper{scroll-snap-type:y mandatory}.swiper-css-mode.swiper-free-mode>.swiper-wrapper{scroll-snap-type:none}.swiper-css-mode.swiper-free-mode ::slotted(swiper-slide){scroll-snap-align:none}.swiper-css-mode.swiper-centered>.swiper-wrapper::before{content:'';flex-shrink:0;order:9999}.swiper-css-mode.swiper-centered ::slotted(swiper-slide){scroll-snap-align:center center;scroll-snap-stop:always}.swiper-css-mode.swiper-centered.swiper-horizontal ::slotted(swiper-slide):first-child{margin-inline-start:var(--swiper-centered-offset-before)}.swiper-css-mode.swiper-centered.swiper-horizontal>.swiper-wrapper::before{height:100%;min-height:1px;width:var(--swiper-centered-offset-after)}.swiper-css-mode.swiper-centered.swiper-vertical ::slotted(swiper-slide):first-child{margin-block-start:var(--swiper-centered-offset-before)}.swiper-css-mode.swiper-centered.swiper-vertical>.swiper-wrapper::before{width:100%;min-width:1px;height:var(--swiper-centered-offset-after)}.swiper-virtual ::slotted(swiper-slide){-webkit-backface-visibility:hidden;transform:translateZ(0)}.swiper-virtual.swiper-css-mode .swiper-wrapper::after{content:'';position:absolute;left:0;top:0;pointer-events:none}.swiper-virtual.swiper-css-mode.swiper-horizontal .swiper-wrapper::after{height:1px;width:var(--swiper-virtual-size)}.swiper-virtual.swiper-css-mode.swiper-vertical .swiper-wrapper::after{width:1px;height:var(--swiper-virtual-size)}:host{--swiper-navigation-size:44px}.swiper-button-next,.swiper-button-prev{position:absolute;top:var(--swiper-navigation-top-offset,50%);width:calc(var(--swiper-navigation-size)/ 44 * 27);height:var(--swiper-navigation-size);margin-top:calc(0px - (var(--swiper-navigation-size)/ 2));z-index:10;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--swiper-navigation-color,var(--swiper-theme-color))}.swiper-button-next.swiper-button-disabled,.swiper-button-prev.swiper-button-disabled{opacity:.35;cursor:auto;pointer-events:none}.swiper-button-next.swiper-button-hidden,.swiper-button-prev.swiper-button-hidden{opacity:0;cursor:auto;pointer-events:none}.swiper-navigation-disabled .swiper-button-next,.swiper-navigation-disabled .swiper-button-prev{display:none!important}.swiper-button-next svg,.swiper-button-prev svg{width:100%;height:100%;object-fit:contain;transform-origin:center}.swiper-rtl .swiper-button-next svg,.swiper-rtl .swiper-button-prev svg{transform:rotate(180deg)}.swiper-button-prev,.swiper-rtl .swiper-button-next{left:var(--swiper-navigation-sides-offset,10px);right:auto}.swiper-button-next,.swiper-rtl .swiper-button-prev{right:var(--swiper-navigation-sides-offset,10px);left:auto}.swiper-button-lock{display:none}.swiper-pagination{position:absolute;text-align:center;transition:.3s opacity;transform:translate3d(0,0,0);z-index:10}.swiper-pagination.swiper-pagination-hidden{opacity:0}.swiper-pagination-disabled>.swiper-pagination,.swiper-pagination.swiper-pagination-disabled{display:none!important}.swiper-horizontal>.swiper-pagination-bullets,.swiper-pagination-bullets.swiper-pagination-horizontal,.swiper-pagination-custom,.swiper-pagination-fraction{bottom:var(--swiper-pagination-bottom,8px);top:var(--swiper-pagination-top,auto);left:0;width:100%}.swiper-pagination-bullets-dynamic{overflow:hidden;font-size:0}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet{transform:scale(.33);position:relative}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet-active{transform:scale(1)}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet-active-main{transform:scale(1)}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet-active-prev{transform:scale(.66)}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet-active-prev-prev{transform:scale(.33)}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet-active-next{transform:scale(.66)}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet-active-next-next{transform:scale(.33)}.swiper-pagination-bullet{width:var(--swiper-pagination-bullet-width,var(--swiper-pagination-bullet-size,8px));height:var(--swiper-pagination-bullet-height,var(--swiper-pagination-bullet-size,8px));display:inline-block;border-radius:var(--swiper-pagination-bullet-border-radius,50%);background:var(--swiper-pagination-bullet-inactive-color,#000);opacity:var(--swiper-pagination-bullet-inactive-opacity, .2)}button.swiper-pagination-bullet{border:none;margin:0;padding:0;box-shadow:none;-webkit-appearance:none;appearance:none}.swiper-pagination-clickable .swiper-pagination-bullet{cursor:pointer}.swiper-pagination-bullet:only-child{display:none!important}.swiper-pagination-bullet-active{opacity:var(--swiper-pagination-bullet-opacity, 1);background:var(--swiper-pagination-color,var(--swiper-theme-color))}.swiper-pagination-vertical.swiper-pagination-bullets,.swiper-vertical>.swiper-pagination-bullets{right:var(--swiper-pagination-right,8px);left:var(--swiper-pagination-left,auto);top:50%;transform:translate3d(0px,-50%,0)}.swiper-pagination-vertical.swiper-pagination-bullets .swiper-pagination-bullet,.swiper-vertical>.swiper-pagination-bullets .swiper-pagination-bullet{margin:var(--swiper-pagination-bullet-vertical-gap,6px) 0;display:block}.swiper-pagination-vertical.swiper-pagination-bullets.swiper-pagination-bullets-dynamic,.swiper-vertical>.swiper-pagination-bullets.swiper-pagination-bullets-dynamic{top:50%;transform:translateY(-50%);width:8px}.swiper-pagination-vertical.swiper-pagination-bullets.swiper-pagination-bullets-dynamic .swiper-pagination-bullet,.swiper-vertical>.swiper-pagination-bullets.swiper-pagination-bullets-dynamic .swiper-pagination-bullet{display:inline-block;transition:.2s transform,.2s top}.swiper-horizontal>.swiper-pagination-bullets .swiper-pagination-bullet,.swiper-pagination-horizontal.swiper-pagination-bullets .swiper-pagination-bullet{margin:0 var(--swiper-pagination-bullet-horizontal-gap,4px)}.swiper-horizontal>.swiper-pagination-bullets.swiper-pagination-bullets-dynamic,.swiper-pagination-horizontal.swiper-pagination-bullets.swiper-pagination-bullets-dynamic{left:50%;transform:translateX(-50%);white-space:nowrap}.swiper-horizontal>.swiper-pagination-bullets.swiper-pagination-bullets-dynamic .swiper-pagination-bullet,.swiper-pagination-horizontal.swiper-pagination-bullets.swiper-pagination-bullets-dynamic .swiper-pagination-bullet{transition:.2s transform,.2s left}.swiper-horizontal.swiper-rtl>.swiper-pagination-bullets-dynamic .swiper-pagination-bullet{transition:.2s transform,.2s right}.swiper-pagination-fraction{color:var(--swiper-pagination-fraction-color,inherit)}.swiper-pagination-progressbar{background:var(--swiper-pagination-progressbar-bg-color,rgba(0,0,0,.25));position:absolute}.swiper-pagination-progressbar .swiper-pagination-progressbar-fill{background:var(--swiper-pagination-color,var(--swiper-theme-color));position:absolute;left:0;top:0;width:100%;height:100%;transform:scale(0);transform-origin:left top}.swiper-rtl .swiper-pagination-progressbar .swiper-pagination-progressbar-fill{transform-origin:right top}.swiper-horizontal>.swiper-pagination-progressbar,.swiper-pagination-progressbar.swiper-pagination-horizontal,.swiper-pagination-progressbar.swiper-pagination-vertical.swiper-pagination-progressbar-opposite,.swiper-vertical>.swiper-pagination-progressbar.swiper-pagination-progressbar-opposite{width:100%;height:var(--swiper-pagination-progressbar-size,4px);left:0;top:0}.swiper-horizontal>.swiper-pagination-progressbar.swiper-pagination-progressbar-opposite,.swiper-pagination-progressbar.swiper-pagination-horizontal.swiper-pagination-progressbar-opposite,.swiper-pagination-progressbar.swiper-pagination-vertical,.swiper-vertical>.swiper-pagination-progressbar{width:var(--swiper-pagination-progressbar-size,4px);height:100%;left:0;top:0}.swiper-pagination-lock{display:none}.swiper-scrollbar{border-radius:var(--swiper-scrollbar-border-radius,10px);position:relative;-ms-touch-action:none;background:var(--swiper-scrollbar-bg-color,rgba(0,0,0,.1))}.swiper-scrollbar-disabled>.swiper-scrollbar,.swiper-scrollbar.swiper-scrollbar-disabled{display:none!important}.swiper-horizontal>.swiper-scrollbar,.swiper-scrollbar.swiper-scrollbar-horizontal{position:absolute;left:var(--swiper-scrollbar-sides-offset,1%);bottom:var(--swiper-scrollbar-bottom,4px);top:var(--swiper-scrollbar-top,auto);z-index:50;height:var(--swiper-scrollbar-size,4px);width:calc(100% - 2 * var(--swiper-scrollbar-sides-offset,1%))}.swiper-scrollbar.swiper-scrollbar-vertical,.swiper-vertical>.swiper-scrollbar{position:absolute;left:var(--swiper-scrollbar-left,auto);right:var(--swiper-scrollbar-right,4px);top:var(--swiper-scrollbar-sides-offset,1%);z-index:50;width:var(--swiper-scrollbar-size,4px);height:calc(100% - 2 * var(--swiper-scrollbar-sides-offset,1%))}.swiper-scrollbar-drag{height:100%;width:100%;position:relative;background:var(--swiper-scrollbar-drag-bg-color,rgba(0,0,0,.5));border-radius:var(--swiper-scrollbar-border-radius,10px);left:0;top:0}.swiper-scrollbar-cursor-drag{cursor:move}.swiper-scrollbar-lock{display:none}::slotted(.swiper-slide-zoomed){cursor:move;touch-action:none}.swiper .swiper-notification{position:absolute;left:0;top:0;pointer-events:none;opacity:0;z-index:-1000}.swiper-free-mode>.swiper-wrapper{transition-timing-function:ease-out;margin:0 auto}.swiper-grid>.swiper-wrapper{flex-wrap:wrap}.swiper-grid-column>.swiper-wrapper{flex-wrap:wrap;flex-direction:column}.swiper-fade.swiper-free-mode ::slotted(swiper-slide){transition-timing-function:ease-out}.swiper-fade ::slotted(swiper-slide){pointer-events:none;transition-property:opacity}.swiper-fade ::slotted(swiper-slide) ::slotted(swiper-slide){pointer-events:none}.swiper-fade ::slotted(.swiper-slide-active){pointer-events:auto}.swiper-fade ::slotted(.swiper-slide-active) ::slotted(.swiper-slide-active){pointer-events:auto}.swiper-cube{overflow:visible}.swiper-cube ::slotted(swiper-slide){pointer-events:none;-webkit-backface-visibility:hidden;backface-visibility:hidden;z-index:1;visibility:hidden;transform-origin:0 0;width:100%;height:100%}.swiper-cube ::slotted(swiper-slide) ::slotted(swiper-slide){pointer-events:none}.swiper-cube.swiper-rtl ::slotted(swiper-slide){transform-origin:100% 0}.swiper-cube ::slotted(.swiper-slide-active),.swiper-cube ::slotted(.swiper-slide-active) ::slotted(.swiper-slide-active){pointer-events:auto}.swiper-cube ::slotted(.swiper-slide-active),.swiper-cube ::slotted(.swiper-slide-next),.swiper-cube ::slotted(.swiper-slide-prev){pointer-events:auto;visibility:visible}.swiper-cube .swiper-cube-shadow{position:absolute;left:0;bottom:0px;width:100%;height:100%;opacity:.6;z-index:0}.swiper-cube .swiper-cube-shadow:before{content:'';background:#000;position:absolute;left:0;top:0;bottom:0;right:0;filter:blur(50px)}.swiper-cube ::slotted(.swiper-slide-next)+::slotted(swiper-slide){pointer-events:auto;visibility:visible}.swiper-flip{overflow:visible}.swiper-flip ::slotted(swiper-slide){pointer-events:none;-webkit-backface-visibility:hidden;backface-visibility:hidden;z-index:1}.swiper-flip ::slotted(swiper-slide) ::slotted(swiper-slide){pointer-events:none}.swiper-flip ::slotted(.swiper-slide-active),.swiper-flip ::slotted(.swiper-slide-active) ::slotted(.swiper-slide-active){pointer-events:auto}.swiper-creative ::slotted(swiper-slide){-webkit-backface-visibility:hidden;backface-visibility:hidden;overflow:hidden;transition-property:transform,opacity,height}.swiper-cards{overflow:visible}.swiper-cards ::slotted(swiper-slide){transform-origin:center bottom;-webkit-backface-visibility:hidden;backface-visibility:hidden;overflow:hidden}`;
+  const SwiperCSS = `:host{--swiper-theme-color:#007aff}:host{position:relative;display:block;margin-left:auto;margin-right:auto;z-index:1}.swiper{width:100%;height:100%;margin-left:auto;margin-right:auto;position:relative;overflow:hidden;list-style:none;padding:0;z-index:1;display:block}.swiper-vertical>.swiper-wrapper{flex-direction:column}.swiper-wrapper{position:relative;width:100%;height:100%;z-index:1;display:flex;transition-property:transform;transition-timing-function:var(--swiper-wrapper-transition-timing-function,initial);box-sizing:content-box}.swiper-android ::slotted(swiper-slide),.swiper-ios ::slotted(swiper-slide),.swiper-wrapper{transform:translate3d(0px,0,0)}.swiper-horizontal{touch-action:pan-y}.swiper-vertical{touch-action:pan-x}::slotted(swiper-slide){flex-shrink:0;width:100%;height:100%;position:relative;transition-property:transform;display:block}::slotted(.swiper-slide-invisible-blank){visibility:hidden}.swiper-autoheight,.swiper-autoheight ::slotted(swiper-slide){height:auto}.swiper-autoheight .swiper-wrapper{align-items:flex-start;transition-property:transform,height}.swiper-backface-hidden ::slotted(swiper-slide){transform:translateZ(0);-webkit-backface-visibility:hidden;backface-visibility:hidden}.swiper-3d.swiper-css-mode .swiper-wrapper{perspective:1200px}.swiper-3d .swiper-wrapper{transform-style:preserve-3d}.swiper-3d{perspective:1200px}.swiper-3d .swiper-cube-shadow,.swiper-3d ::slotted(swiper-slide){transform-style:preserve-3d}.swiper-css-mode>.swiper-wrapper{overflow:auto;scrollbar-width:none;-ms-overflow-style:none}.swiper-css-mode>.swiper-wrapper::-webkit-scrollbar{display:none}.swiper-css-mode ::slotted(swiper-slide){scroll-snap-align:start start}.swiper-css-mode.swiper-horizontal>.swiper-wrapper{scroll-snap-type:x mandatory}.swiper-css-mode.swiper-vertical>.swiper-wrapper{scroll-snap-type:y mandatory}.swiper-css-mode.swiper-free-mode>.swiper-wrapper{scroll-snap-type:none}.swiper-css-mode.swiper-free-mode ::slotted(swiper-slide){scroll-snap-align:none}.swiper-css-mode.swiper-centered>.swiper-wrapper::before{content:'';flex-shrink:0;order:9999}.swiper-css-mode.swiper-centered ::slotted(swiper-slide){scroll-snap-align:center center;scroll-snap-stop:always}.swiper-css-mode.swiper-centered.swiper-horizontal ::slotted(swiper-slide):first-child{margin-inline-start:var(--swiper-centered-offset-before)}.swiper-css-mode.swiper-centered.swiper-horizontal>.swiper-wrapper::before{height:100%;min-height:1px;width:var(--swiper-centered-offset-after)}.swiper-css-mode.swiper-centered.swiper-vertical ::slotted(swiper-slide):first-child{margin-block-start:var(--swiper-centered-offset-before)}.swiper-css-mode.swiper-centered.swiper-vertical>.swiper-wrapper::before{width:100%;min-width:1px;height:var(--swiper-centered-offset-after)}.swiper-virtual ::slotted(swiper-slide){-webkit-backface-visibility:hidden;transform:translateZ(0)}.swiper-virtual.swiper-css-mode .swiper-wrapper::after{content:'';position:absolute;left:0;top:0;pointer-events:none}.swiper-virtual.swiper-css-mode.swiper-horizontal .swiper-wrapper::after{height:1px;width:var(--swiper-virtual-size)}.swiper-virtual.swiper-css-mode.swiper-vertical .swiper-wrapper::after{width:1px;height:var(--swiper-virtual-size)}:host{--swiper-navigation-size:44px}.swiper-button-next,.swiper-button-prev{position:absolute;top:var(--swiper-navigation-top-offset,50%);width:calc(var(--swiper-navigation-size)/ 44 * 27);height:var(--swiper-navigation-size);margin-top:calc(0px - (var(--swiper-navigation-size)/ 2));z-index:10;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--swiper-navigation-color,var(--swiper-theme-color))}.swiper-button-next.swiper-button-disabled,.swiper-button-prev.swiper-button-disabled{opacity:.35;cursor:auto;pointer-events:none}.swiper-button-next.swiper-button-hidden,.swiper-button-prev.swiper-button-hidden{opacity:0;cursor:auto;pointer-events:none}.swiper-navigation-disabled .swiper-button-next,.swiper-navigation-disabled .swiper-button-prev{display:none!important}.swiper-button-next svg,.swiper-button-prev svg{width:100%;height:100%;object-fit:contain;transform-origin:center}.swiper-rtl .swiper-button-next svg,.swiper-rtl .swiper-button-prev svg{transform:rotate(180deg)}.swiper-button-prev,.swiper-rtl .swiper-button-next{left:var(--swiper-navigation-sides-offset,10px);right:auto}.swiper-button-next,.swiper-rtl .swiper-button-prev{right:var(--swiper-navigation-sides-offset,10px);left:auto}.swiper-button-lock{display:none}.swiper-pagination{position:absolute;text-align:center;transition:.3s opacity;transform:translate3d(0,0,0);z-index:10}.swiper-pagination.swiper-pagination-hidden{opacity:0}.swiper-pagination-disabled>.swiper-pagination,.swiper-pagination.swiper-pagination-disabled{display:none!important}.swiper-horizontal>.swiper-pagination-bullets,.swiper-pagination-bullets.swiper-pagination-horizontal,.swiper-pagination-custom,.swiper-pagination-fraction{bottom:var(--swiper-pagination-bottom,8px);top:var(--swiper-pagination-top,auto);left:0;width:100%}.swiper-pagination-bullets-dynamic{overflow:hidden;font-size:0}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet{transform:scale(.33);position:relative}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet-active{transform:scale(1)}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet-active-main{transform:scale(1)}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet-active-prev{transform:scale(.66)}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet-active-prev-prev{transform:scale(.33)}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet-active-next{transform:scale(.66)}.swiper-pagination-bullets-dynamic .swiper-pagination-bullet-active-next-next{transform:scale(.33)}.swiper-pagination-bullet{width:var(--swiper-pagination-bullet-width,var(--swiper-pagination-bullet-size,8px));height:var(--swiper-pagination-bullet-height,var(--swiper-pagination-bullet-size,8px));display:inline-block;border-radius:var(--swiper-pagination-bullet-border-radius,50%);background:var(--swiper-pagination-bullet-inactive-color,#000);opacity:var(--swiper-pagination-bullet-inactive-opacity, .2)}button.swiper-pagination-bullet{border:none;margin:0;padding:0;box-shadow:none;-webkit-appearance:none;appearance:none}.swiper-pagination-clickable .swiper-pagination-bullet{cursor:pointer}.swiper-pagination-bullet:only-child{display:none!important}.swiper-pagination-bullet-active{opacity:var(--swiper-pagination-bullet-opacity, 1);background:var(--swiper-pagination-color,var(--swiper-theme-color))}.swiper-pagination-vertical.swiper-pagination-bullets,.swiper-vertical>.swiper-pagination-bullets{right:var(--swiper-pagination-right,8px);left:var(--swiper-pagination-left,auto);top:50%;transform:translate3d(0px,-50%,0)}.swiper-pagination-vertical.swiper-pagination-bullets .swiper-pagination-bullet,.swiper-vertical>.swiper-pagination-bullets .swiper-pagination-bullet{margin:var(--swiper-pagination-bullet-vertical-gap,6px) 0;display:block}.swiper-pagination-vertical.swiper-pagination-bullets.swiper-pagination-bullets-dynamic,.swiper-vertical>.swiper-pagination-bullets.swiper-pagination-bullets-dynamic{top:50%;transform:translateY(-50%);width:8px}.swiper-pagination-vertical.swiper-pagination-bullets.swiper-pagination-bullets-dynamic .swiper-pagination-bullet,.swiper-vertical>.swiper-pagination-bullets.swiper-pagination-bullets-dynamic .swiper-pagination-bullet{display:inline-block;transition:.2s transform,.2s top}.swiper-horizontal>.swiper-pagination-bullets .swiper-pagination-bullet,.swiper-pagination-horizontal.swiper-pagination-bullets .swiper-pagination-bullet{margin:0 var(--swiper-pagination-bullet-horizontal-gap,4px)}.swiper-horizontal>.swiper-pagination-bullets.swiper-pagination-bullets-dynamic,.swiper-pagination-horizontal.swiper-pagination-bullets.swiper-pagination-bullets-dynamic{left:50%;transform:translateX(-50%);white-space:nowrap}.swiper-horizontal>.swiper-pagination-bullets.swiper-pagination-bullets-dynamic .swiper-pagination-bullet,.swiper-pagination-horizontal.swiper-pagination-bullets.swiper-pagination-bullets-dynamic .swiper-pagination-bullet{transition:.2s transform,.2s left}.swiper-horizontal.swiper-rtl>.swiper-pagination-bullets-dynamic .swiper-pagination-bullet{transition:.2s transform,.2s right}.swiper-pagination-fraction{color:var(--swiper-pagination-fraction-color,inherit)}.swiper-pagination-progressbar{background:var(--swiper-pagination-progressbar-bg-color,rgba(0,0,0,.25));position:absolute}.swiper-pagination-progressbar .swiper-pagination-progressbar-fill{background:var(--swiper-pagination-color,var(--swiper-theme-color));position:absolute;left:0;top:0;width:100%;height:100%;transform:scale(0);transform-origin:left top}.swiper-rtl .swiper-pagination-progressbar .swiper-pagination-progressbar-fill{transform-origin:right top}.swiper-horizontal>.swiper-pagination-progressbar,.swiper-pagination-progressbar.swiper-pagination-horizontal,.swiper-pagination-progressbar.swiper-pagination-vertical.swiper-pagination-progressbar-opposite,.swiper-vertical>.swiper-pagination-progressbar.swiper-pagination-progressbar-opposite{width:100%;height:var(--swiper-pagination-progressbar-size,4px);left:0;top:0}.swiper-horizontal>.swiper-pagination-progressbar.swiper-pagination-progressbar-opposite,.swiper-pagination-progressbar.swiper-pagination-horizontal.swiper-pagination-progressbar-opposite,.swiper-pagination-progressbar.swiper-pagination-vertical,.swiper-vertical>.swiper-pagination-progressbar{width:var(--swiper-pagination-progressbar-size,4px);height:100%;left:0;top:0}.swiper-pagination-lock{display:none}.swiper-scrollbar{border-radius:var(--swiper-scrollbar-border-radius,10px);position:relative;touch-action:none;background:var(--swiper-scrollbar-bg-color,rgba(0,0,0,.1))}.swiper-scrollbar-disabled>.swiper-scrollbar,.swiper-scrollbar.swiper-scrollbar-disabled{display:none!important}.swiper-horizontal>.swiper-scrollbar,.swiper-scrollbar.swiper-scrollbar-horizontal{position:absolute;left:var(--swiper-scrollbar-sides-offset,1%);bottom:var(--swiper-scrollbar-bottom,4px);top:var(--swiper-scrollbar-top,auto);z-index:50;height:var(--swiper-scrollbar-size,4px);width:calc(100% - 2 * var(--swiper-scrollbar-sides-offset,1%))}.swiper-scrollbar.swiper-scrollbar-vertical,.swiper-vertical>.swiper-scrollbar{position:absolute;left:var(--swiper-scrollbar-left,auto);right:var(--swiper-scrollbar-right,4px);top:var(--swiper-scrollbar-sides-offset,1%);z-index:50;width:var(--swiper-scrollbar-size,4px);height:calc(100% - 2 * var(--swiper-scrollbar-sides-offset,1%))}.swiper-scrollbar-drag{height:100%;width:100%;position:relative;background:var(--swiper-scrollbar-drag-bg-color,rgba(0,0,0,.5));border-radius:var(--swiper-scrollbar-border-radius,10px);left:0;top:0}.swiper-scrollbar-cursor-drag{cursor:move}.swiper-scrollbar-lock{display:none}::slotted(.swiper-slide-zoomed){cursor:move;touch-action:none}.swiper .swiper-notification{position:absolute;left:0;top:0;pointer-events:none;opacity:0;z-index:-1000}.swiper-free-mode>.swiper-wrapper{transition-timing-function:ease-out;margin:0 auto}.swiper-grid>.swiper-wrapper{flex-wrap:wrap}.swiper-grid-column>.swiper-wrapper{flex-wrap:wrap;flex-direction:column}.swiper-fade.swiper-free-mode ::slotted(swiper-slide){transition-timing-function:ease-out}.swiper-fade ::slotted(swiper-slide){pointer-events:none;transition-property:opacity}.swiper-fade ::slotted(swiper-slide) ::slotted(swiper-slide){pointer-events:none}.swiper-fade ::slotted(.swiper-slide-active){pointer-events:auto}.swiper-fade ::slotted(.swiper-slide-active) ::slotted(.swiper-slide-active){pointer-events:auto}.swiper-cube{overflow:visible}.swiper-cube ::slotted(swiper-slide){pointer-events:none;-webkit-backface-visibility:hidden;backface-visibility:hidden;z-index:1;visibility:hidden;transform-origin:0 0;width:100%;height:100%}.swiper-cube ::slotted(swiper-slide) ::slotted(swiper-slide){pointer-events:none}.swiper-cube.swiper-rtl ::slotted(swiper-slide){transform-origin:100% 0}.swiper-cube ::slotted(.swiper-slide-active),.swiper-cube ::slotted(.swiper-slide-active) ::slotted(.swiper-slide-active){pointer-events:auto}.swiper-cube ::slotted(.swiper-slide-active),.swiper-cube ::slotted(.swiper-slide-next),.swiper-cube ::slotted(.swiper-slide-prev){pointer-events:auto;visibility:visible}.swiper-cube .swiper-cube-shadow{position:absolute;left:0;bottom:0px;width:100%;height:100%;opacity:.6;z-index:0}.swiper-cube .swiper-cube-shadow:before{content:'';background:#000;position:absolute;left:0;top:0;bottom:0;right:0;filter:blur(50px)}.swiper-cube ::slotted(.swiper-slide-next)+::slotted(swiper-slide){pointer-events:auto;visibility:visible}.swiper-flip{overflow:visible}.swiper-flip ::slotted(swiper-slide){pointer-events:none;-webkit-backface-visibility:hidden;backface-visibility:hidden;z-index:1}.swiper-flip ::slotted(swiper-slide) ::slotted(swiper-slide){pointer-events:none}.swiper-flip ::slotted(.swiper-slide-active),.swiper-flip ::slotted(.swiper-slide-active) ::slotted(.swiper-slide-active){pointer-events:auto}.swiper-creative ::slotted(swiper-slide){-webkit-backface-visibility:hidden;backface-visibility:hidden;overflow:hidden;transition-property:transform,opacity,height}.swiper-cards{overflow:visible}.swiper-cards ::slotted(swiper-slide){transform-origin:center bottom;-webkit-backface-visibility:hidden;backface-visibility:hidden;overflow:hidden}`;
   const SwiperSlideCSS = `::slotted(.swiper-slide-shadow),::slotted(.swiper-slide-shadow-bottom),::slotted(.swiper-slide-shadow-left),::slotted(.swiper-slide-shadow-right),::slotted(.swiper-slide-shadow-top){position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:10}::slotted(.swiper-slide-shadow){background:rgba(0,0,0,.15)}::slotted(.swiper-slide-shadow-left){background-image:linear-gradient(to left,rgba(0,0,0,.5),rgba(0,0,0,0))}::slotted(.swiper-slide-shadow-right){background-image:linear-gradient(to right,rgba(0,0,0,.5),rgba(0,0,0,0))}::slotted(.swiper-slide-shadow-top){background-image:linear-gradient(to top,rgba(0,0,0,.5),rgba(0,0,0,0))}::slotted(.swiper-slide-shadow-bottom){background-image:linear-gradient(to bottom,rgba(0,0,0,.5),rgba(0,0,0,0))}.swiper-lazy-preloader{animation:swiper-preloader-spin 1s infinite linear;width:42px;height:42px;position:absolute;left:50%;top:50%;margin-left:-21px;margin-top:-21px;z-index:10;transform-origin:50%;box-sizing:border-box;border:4px solid var(--swiper-preloader-color,var(--swiper-theme-color));border-radius:50%;border-top-color:transparent}@keyframes swiper-preloader-spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}::slotted(.swiper-slide-shadow-cube.swiper-slide-shadow-bottom),::slotted(.swiper-slide-shadow-cube.swiper-slide-shadow-left),::slotted(.swiper-slide-shadow-cube.swiper-slide-shadow-right),::slotted(.swiper-slide-shadow-cube.swiper-slide-shadow-top){z-index:0;-webkit-backface-visibility:hidden;backface-visibility:hidden}::slotted(.swiper-slide-shadow-flip.swiper-slide-shadow-bottom),::slotted(.swiper-slide-shadow-flip.swiper-slide-shadow-left),::slotted(.swiper-slide-shadow-flip.swiper-slide-shadow-right),::slotted(.swiper-slide-shadow-flip.swiper-slide-shadow-top){z-index:0;-webkit-backface-visibility:hidden;backface-visibility:hidden}::slotted(.swiper-zoom-container){width:100%;height:100%;display:flex;justify-content:center;align-items:center;text-align:center}::slotted(.swiper-zoom-container)>canvas,::slotted(.swiper-zoom-container)>img,::slotted(.swiper-zoom-container)>svg{max-width:100%;max-height:100%;object-fit:contain}`;
 
   class DummyHTMLElement {}
@@ -9631,7 +9991,7 @@
           }
           const event = new CustomEvent(eventName, {
             detail: args,
-            bubbles: true,
+            bubbles: name !== 'hashChange',
             cancelable: true
           });
           _this.dispatchEvent(event);
@@ -9663,6 +10023,9 @@
       } = getParams(this, propName, propValue);
       this.passedParams = passedParams;
       this.swiperParams = swiperParams;
+      if (this.swiper && this.swiper.params[propName] === propValue) {
+        return;
+      }
       updateSwiper({
         swiper: this.swiper,
         passedParams: this.passedParams,
@@ -9703,7 +10066,7 @@
         if (!this.passedParams) this.passedParams = {};
         this.passedParams[paramName] = value;
         if (!this.initialized) return;
-        this.updateSwiperOnPropChange(paramName);
+        this.updateSwiperOnPropChange(paramName, value);
       }
     });
   });
