@@ -1,5 +1,5 @@
 /**
- * Swiper Custom Element 11.0.4
+ * Swiper Custom Element 11.0.5
  * Most modern mobile touch slider and framework with hardware accelerated transitions
  * https://swiperjs.com
  *
@@ -7,7 +7,7 @@
  *
  * Released under the MIT License
  *
- * Released on: November 9, 2023
+ * Released on: November 22, 2023
  */
 
 (function () {
@@ -1052,6 +1052,7 @@
     if (params.watchSlidesProgress) {
       swiper.updateSlidesOffset();
     }
+    swiper.emit('slidesUpdated');
     if (!isVirtual && !params.cssMode && (params.effect === 'slide' || params.effect === 'fade')) {
       const backFaceHiddenClass = `${params.containerModifierClass}backface-hidden`;
       const hasClassBackfaceClassAdded = swiper.el.classList.contains(backFaceHiddenClass);
@@ -3012,16 +3013,17 @@
     }
 
     // Find current slide
+    const swipeToLast = currentPos >= -swiper.maxTranslate() && !swiper.params.loop;
     let stopIndex = 0;
     let groupSize = swiper.slidesSizesGrid[0];
     for (let i = 0; i < slidesGrid.length; i += i < params.slidesPerGroupSkip ? 1 : params.slidesPerGroup) {
       const increment = i < params.slidesPerGroupSkip - 1 ? 1 : params.slidesPerGroup;
       if (typeof slidesGrid[i + increment] !== 'undefined') {
-        if (currentPos >= slidesGrid[i] && currentPos < slidesGrid[i + increment]) {
+        if (swipeToLast || currentPos >= slidesGrid[i] && currentPos < slidesGrid[i + increment]) {
           stopIndex = i;
           groupSize = slidesGrid[i + increment] - slidesGrid[i];
         }
-      } else if (currentPos >= slidesGrid[i]) {
+      } else if (swipeToLast || currentPos >= slidesGrid[i]) {
         stopIndex = i;
         groupSize = slidesGrid[slidesGrid.length - 1] - slidesGrid[slidesGrid.length - 2];
       }
@@ -4609,7 +4611,7 @@
   }
 
   /**
-   * Swiper Custom Element 11.0.4
+   * Swiper Custom Element 11.0.5
    * Most modern mobile touch slider and framework with hardware accelerated transitions
    * https://swiperjs.com
    *
@@ -4617,7 +4619,7 @@
    *
    * Released under the MIT License
    *
-   * Released on: November 9, 2023
+   * Released on: November 22, 2023
    */
 
 
