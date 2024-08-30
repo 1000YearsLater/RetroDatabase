@@ -1,4 +1,3 @@
-# .github/workflows/version.yml
 name: Git Version
 
 on:
@@ -11,29 +10,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4.1.4
+        uses: actions/checkout@v4.1.7
         with:
-          ref: ${{ github.head_ref }}   # checkout the correct branch name
-          fetch-depth: 0                # fetch the whole repo history
-        runs:
-          using: 'node22'
+          fetch-depth: 0  # Fetch the whole repo history
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4.0.3
+        with:
+          node-version: '22'  # Correctly set to the latest Node.js version
+
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v4.0.2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       - name: Git Version
         id: version
         uses: codacy/git-version@2.8.0
         
-      - name: Cache
-        uses: actions/cache@v4.0.2
-
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4.0.2
-            
-        
-      
       - name: Use the version
-        run: |
-          echo ${{ steps.version.outputs.version }}
+        run: echo ${{ steps.version.outputs.version }}
+        
       - name: Use the previous version
-        run: |
-          echo ${{ steps.version.outputs.previous-version }}
-            
+        run: echo ${{ steps.version.outputs.previous-version }}
